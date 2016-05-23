@@ -31,6 +31,7 @@ int set_errorlist(win_T *wp, list_T *list, int action, char_u *title, dict_T *wh
 int set_ref_in_quickfix(int copyID);
 void ex_cbuffer(exarg_T *eap);
 void ex_cexpr(exarg_T *eap);
+void ex_cfilter(exarg_T *eap);
 void ex_helpgrep(exarg_T *eap);
 void f_getloclist(typval_T *argvars, typval_T *rettv);
 void f_getqflist(typval_T *argvars, typval_T *rettv);
