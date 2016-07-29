@@ -4013,12 +4013,38 @@ get_callback(typval_T *arg)
     else
     {
 	res.cb_partial = NULL;
+	if (arg->v_type == VAR_FUNC)
+	{
+	    // Note that we don't make a copy of the string.
+	    res.cb_name = arg->vval.v_string;
+	    func_ref(res.cb_name);
+	}
 	if (arg->v_type == VAR_STRING && arg->vval.v_string != NULL
 					       && isdigit(*arg->vval.v_string))
 	    r = FAIL;
-	else if (arg->v_type == VAR_FUNC || arg->v_type == VAR_STRING)
+	else if (arg->v_type == VAR_STRING)
 	{
-	    // Note that we don't make a copy of the string.
+	    char_u	*s = arg->vval.v_string;
+
+	    if (STRNCMP(s, "s:", 2) == 0 || STRNCMP(s, "<SID>", 5) == 0)
+	    {
+		char	sid_buf[25];
+		char_u	*name;
+		int	off	= *s == 's' ? 2 : 5;
+
+		// Expand s: and <SID> into <SNR>nr_
+		sprintf(sid_buf, "<SNR>%ld_", (long)current_sctx.sc_sid);
+		name = alloc((int)(STRLEN(sid_buf) + STRLEN(s + off) + 1));
+		if (name != NULL)
+		{
+		    STRCPY(name, sid_buf);
+		    STRCAT(name, s + off);
+
+		    vim_free(arg->vval.v_string);
+		    arg->vval.v_string = name;
+		}
+	    }
+
 	    res.cb_name = arg->vval.v_string;
 	    func_ref(res.cb_name);
 	}
