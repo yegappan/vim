@@ -2545,6 +2545,8 @@ get_cmd_output_as_rettv(
 	if (argvars[1].v_type == VAR_NUMBER)
 	{
 	    linenr_T	lnum;
+	    linenr_T	begin_lnum;
+	    linenr_T	end_lnum;
 	    buf_T	*buf;
 
 	    buf = buflist_findnr(argvars[1].vval.v_number);
@@ -2555,7 +2557,25 @@ get_cmd_output_as_rettv(
 		goto errret;
 	    }
 
-	    for (lnum = 1; lnum <= buf->b_ml.ml_line_count; lnum++)
+	    begin_lnum = 1;
+	    end_lnum = buf->b_ml.ml_line_count;
+	    if (argvars[2].v_type != VAR_UNKNOWN)
+	    {
+		begin_lnum = tv_get_lnum_buf(&argvars[2], buf);
+		if (argvars[3].v_type != VAR_UNKNOWN)
+		{
+		    end_lnum = tv_get_lnum_buf(&argvars[3], buf);
+		    if (end_lnum > buf->b_ml.ml_line_count)
+			end_lnum = buf->b_ml.ml_line_count;
+		}
+		if (begin_lnum < 1 || end_lnum < begin_lnum)
+		{
+		    emsg(_(e_invarg));
+		    goto errret;
+		}
+	    }
+
+	    for (lnum = begin_lnum; lnum <= end_lnum; lnum++)
 	    {
 		for (p = ml_get_buf(buf, lnum, FALSE); *p != NUL; ++p)
 		    if (putc(*p == '\n' ? NUL : *p, fd) == EOF)
