@@ -696,7 +696,8 @@ synIDtrans({synID})		Number	translated syntax ID of {synID}
 synconcealed({lnum}, {col})	List	info about concealing
 synstack({lnum}, {col})		List	stack of syntax IDs at {lnum} and
 					{col}
-system({expr} [, {input}])	String	output of shell command/filter {expr}
+system({expr} [, {input} [, {lnum} [, {end}]]])
+				String	output of shell command/filter {expr}
 systemlist({expr} [, {input}])	List	output of shell command/filter {expr}
 tabpagebuflist([{arg}])		List	list of buffer numbers in tab page
 tabpagenr([{arg}])		Number	number of current or last tab page
@@ -11689,7 +11690,7 @@ synstack({lnum}, {col})					*synstack()*
 		Return type: list<number> or list<any>
 
 
-system({expr} [, {input}])				*system()* *E677*
+system({expr} [, {input} [, {lnum} [, {end}]]]])	*system()* *E677*
 		Get the output of the shell command {expr} as a |String|.  See
 		|systemlist()| to get the output as a |List|.
 
@@ -11704,7 +11705,10 @@ system({expr} [, {input}])				*system()* *E677*
 		When {input} is given and is a number that is a valid id for
 		an existing buffer then the content of the buffer is written
 		to the file line by line, each line terminated by a NL and
-		NULs characters where the text has a NL.
+		NULs characters where the text has a NL. If {lnum} and {end}
+		are given, then the lines from {lnum} to {end} in the buffer
+		are used. If only {lnum} is given, then the lines from {lnum}
+		to the end of the buffer are used.
 
 		Pipes are not used, the 'shelltemp' option is not used.
 
@@ -11755,7 +11759,7 @@ system({expr} [, {input}])				*system()* *E677*
 		Return type: |String|
 
 
-systemlist({expr} [, {input}])				*systemlist()*
+systemlist({expr} [, {input} [, {lnum} [, {end}]]])	*systemlist()*
 		Same as |system()|, but returns a |List| with lines (parts of
 		output separated by NL) with NULs transformed into NLs.
 		Output is the same as |readfile()| will output with {binary}
