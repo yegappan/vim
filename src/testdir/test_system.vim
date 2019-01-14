@@ -42,6 +42,42 @@ func Test_System()
     let out = systemlist('more.com', bufnr('%'))
     call assert_equal(["asdf\r", "pw\r", "er\r", "xxxx\r"],  out)
   endif
+
+  " Pass parts of a buffer to an external command
+  let out = system('wc -l', bufnr('%'), 3)
+  " On OS/X we get leading spaces
+  let out = substitute(out, '^ *', '', '')
+  call assert_equal("1\n", out)
+
+  let out = systemlist('cat', bufnr('%'), 3)
+  " On Windows we may get a trailing CR.
+  if out != ["xxxx\r"]
+    call assert_equal(["xxxx"],  out)
+  endif
+
+  let out = system('wc -l', bufnr('%'), 2, 3)
+  " On OS/X we get leading spaces
+  let out = substitute(out, '^ *', '', '')
+  call assert_equal("2\n", out)
+
+  let out = system('wc -l', bufnr('%'), 2, 99)
+  " On OS/X we get leading spaces
+  let out = substitute(out, '^ *', '', '')
+  call assert_equal("2\n", out)
+
+  let out = systemlist('cat', bufnr('%'), 2, 3)
+  " On Windows we may get a trailing CR.
+  if out != ["pw\<NL>er\r", "xxxx\r"]
+    call assert_equal(["pw\<NL>er", 'xxxx'],  out)
+  endif
+
+  " Error cases
+  call assert_fails("call system('wc -l', bufnr('%'), 99)", 'E474:')
+  call assert_fails("call system('wc -l', bufnr('%'), 77, 78)", 'E474:')
+  call assert_fails("call system('wc -l', bufnr('%'), 3, 2)", 'E474:')
+  call assert_fails("call system('wc -l', bufnr('%'), {})", 'E474:')
+  call assert_fails("call system('wc -l', bufnr('%'), 3, {})", 'E474:')
+
   bwipe!
 
   call assert_fails('call system("wc -l", 99999)', 'E86:')
