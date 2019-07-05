@@ -2659,7 +2659,7 @@ shellescape({string} [, {special}])
 shiftwidth([{col}])		Number	effective value of 'shiftwidth'
 sign_define({list})		Number	define or update signs
 sign_getdefined([{name}])	List	get a list of defined signs
-sign_getplaced([, {dict}])	List	get a list of placed signs
+sign_getplaced([{dict}])	List	get a list of placed signs
 sign_jump({id}, {group}, {expr})
 				Number	jump to a sign
 sign_place({list})		Number	place one or more signs
