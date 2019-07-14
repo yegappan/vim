@@ -1822,6 +1822,10 @@ EXTERN char e_lock_unlock[]	INIT(= N_("E940: Cannot lock or unlock variable %s")
 EXTERN char e_alloc_color[]	INIT(= N_("E254: Cannot allocate color %s"));
 #endif
 
+#ifdef FEAT_SYN_HL
+EXTERN char msg_no_items[] INIT(= N_("No Syntax items defined for this buffer"));
+#endif
+
 EXTERN char top_bot_msg[] INIT(= N_("search hit TOP, continuing at BOTTOM"));
 EXTERN char bot_top_msg[] INIT(= N_("search hit BOTTOM, continuing at TOP"));
 
