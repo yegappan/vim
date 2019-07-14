@@ -1947,6 +1947,10 @@ EXTERN char line_msg[]	    INIT(= N_(" line "));
 EXTERN char need_key_msg[]  INIT(= N_("Need encryption key for \"%s\""));
 #endif
 
+#ifdef FEAT_SYN_HL
+EXTERN char msg_no_items[]  INIT(= N_("No Syntax items defined for this buffer"));
+#endif
+
 /*
  * Comms. with the session manager (XSMP)
  */
