@@ -206,7 +206,6 @@ static int hl_flags[HLF_COUNT] = HL_FLAGS;
 
 // highlight groups for 'highlight' option
 static garray_T highlight_ga;
-#define HL_TABLE()	((hl_group_T *)((highlight_ga.ga_data)))
 
 // Wrapper struct for hashtable entries: stores the highlight group ID alongside
 // the uppercase name used as a hash key.  Uses the same offsetof pattern as
