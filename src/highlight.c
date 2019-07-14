@@ -183,7 +183,6 @@ typedef struct
 
 // highlight groups for 'highlight' option
 static garray_T highlight_ga;
-#define HL_TABLE()	((hl_group_T *)((highlight_ga.ga_data)))
 
 /*
  * An attribute number is the index in attr_table plus ATTR_OFF.

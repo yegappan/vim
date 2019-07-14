@@ -1212,9 +1212,132 @@ struct syn_state
     linenr_T	sst_change_lnum;// when non-zero, change in this line
 				// may have made the state invalid
 };
+
+#ifdef FEAT_PROFILE
+/*
+ * Used for :syntime: timing of executing a syntax pattern.
+ */
+typedef struct {
+    proftime_T	total;		// total time used
+    proftime_T	slowest;	// time of slowest call
+    long	count;		// nr of times used
+    long	match;		// nr of times matched
+} syn_time_T;
+#else
+typedef int syn_time_T;
+#endif
+
+// different types of offsets that are possible
+#define SPO_MS_OFF	0	// match  start offset
+#define SPO_ME_OFF	1	// match  end	offset
+#define SPO_HS_OFF	2	// highl. start offset
+#define SPO_HE_OFF	3	// highl. end	offset
+#define SPO_RS_OFF	4	// region start offset
+#define SPO_RE_OFF	5	// region end	offset
+#define SPO_LC_OFF	6	// leading context offset
+#define SPO_COUNT	7
+
+/*
+ * The patterns that are being searched for are stored in a syn_pattern.
+ * A match item consists of one pattern.
+ * A start/end item consists of n start patterns and m end patterns.
+ * A start/skip/end item consists of n start patterns, one skip pattern and m
+ * end patterns.
+ * For the latter two, the patterns are always consecutive: start-skip-end.
+ *
+ * A character offset can be given for the matched text (_m_start and _m_end)
+ * and for the actually highlighted text (_h_start and _h_end).
+ *
+ * Note that ordering of members is optimized to reduce padding.
+ */
+typedef struct syn_pattern
+{
+    char	 sp_type;		// see SPTYPE_ defines below
+    char	 sp_syncing;		// this item used for syncing
+    short	 sp_syn_match_id;	// highlight group ID of pattern
+    short	 sp_off_flags;		// see below
+    int		 sp_offsets[SPO_COUNT];	// offsets
+    int		 sp_flags;		// see HL_ defines below
+#ifdef FEAT_CONCEAL
+    int		 sp_cchar;		// conceal substitute character
+#endif
+    int		 sp_ic;			// ignore-case flag for sp_prog
+    int		 sp_sync_idx;		// sync item index (syncing only)
+    int		 sp_line_id;		// ID of last line where tried
+    int		 sp_startcol;		// next match in sp_line_id line
+    short	*sp_cont_list;		// cont. group IDs, if non-zero
+    short	*sp_next_list;		// next group IDs, if non-zero
+    struct sp_syn sp_syn;		// struct passed to in_id_list()
+    char_u	*sp_pattern;		// regexp to match, pattern
+    regprog_T	*sp_prog;		// regexp to match, program
+#ifdef FEAT_PROFILE
+    syn_time_T	 sp_time;
+#endif
+} synpat_T;
+
+// The sp_off_flags are computed like this:
+// offset from the start of the matched text: (1 << SPO_XX_OFF)
+// offset from the end	 of the matched text: (1 << (SPO_XX_OFF + SPO_COUNT))
+// When both are present, only one is used.
+
+#define SYN_ITEMS(buf)	((synpat_T *)((buf)->b_syn_patterns.ga_data))
 #endif // FEAT_SYN_HL
 
 #define MAX_HL_ID       20000	// maximum value for a highlight ID.
+
+/*
+ * Structure that stores information about a highlight group.
+ * The ID of a highlight group is also called group ID.  It is the index in
+ * the highlight_ga array PLUS ONE.
+ */
+typedef struct
+{
+    char_u	*sg_name;	// highlight group name
+    char_u	*sg_name_u;	// uppercase of sg_name
+    int		sg_cleared;	// "hi clear" was used
+// for normal terminals
+    int		sg_term;	// "term=" highlighting attributes
+    char_u	*sg_start;	// terminal string for start highl
+    char_u	*sg_stop;	// terminal string for stop highl
+    int		sg_term_attr;	// Screen attr for term mode
+// for color terminals
+    int		sg_cterm;	// "cterm=" highlighting attr
+    int		sg_cterm_bold;	// bold attr was set for light color
+    int		sg_cterm_fg;	// terminal fg color number + 1
+    int		sg_cterm_bg;	// terminal bg color number + 1
+    int		sg_cterm_ul;	// terminal ul color number + 1
+    int		sg_cterm_attr;	// Screen attr for color term mode
+    int		sg_cterm_font;	// terminal alternative font (0 for normal)
+// for when using the GUI
+#if defined(FEAT_GUI) || defined(FEAT_TERMGUICOLORS)
+    guicolor_T	sg_gui_fg;	// GUI foreground color handle
+    guicolor_T	sg_gui_bg;	// GUI background color handle
+    guicolor_T	sg_gui_sp;	// GUI special color handle
+#endif
+#ifdef FEAT_GUI
+    GuiFont	sg_font;	// GUI font handle
+#ifdef FEAT_XFONTSET
+    GuiFontset	sg_fontset;	// GUI fontset handle
+#endif
+    char_u	*sg_font_name;  // GUI font or fontset name
+    int		sg_gui_attr;    // Screen attr for GUI mode
+#endif
+#if defined(FEAT_GUI) || defined(FEAT_EVAL)
+// Store the sp color name for the GUI or synIDattr()
+    int		sg_gui;		// "gui=" highlighting attributes
+    char_u	*sg_gui_fg_name;// GUI foreground color name
+    char_u	*sg_gui_bg_name;// GUI background color name
+    char_u	*sg_gui_sp_name;// GUI special color name
+#endif
+    int		sg_link;	// link to this highlight group ID
+    int		sg_deflink;	// default link; restored in highlight_clear()
+    int		sg_set;		// combination of SG_* flags
+#ifdef FEAT_EVAL
+    sctx_T	sg_deflink_sctx;  // script where the default link was set
+    sctx_T	sg_script_ctx;	// script in which the group was last set
+#endif
+} hl_group_T;
+#define HL_TABLE()	((hl_group_T *)((highlight_ga.ga_data)))
 
 /*
  * Structure shared between syntax.c, screen.c and gui_x11.c.
@@ -2947,18 +3070,6 @@ typedef struct
 #endif
 
 typedef struct qf_info_S qf_info_T;
-
-#ifdef FEAT_PROFILE
-/*
- * Used for :syntime: timing of executing a syntax pattern.
- */
-typedef struct {
-    proftime_T	total;		// total time used
-    proftime_T	slowest;	// time of slowest call
-    long	count;		// nr of times used
-    long	match;		// nr of times matched
-} syn_time_T;
-#endif
 
 typedef struct timer_S timer_T;
 struct timer_S
