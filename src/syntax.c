@@ -28,56 +28,10 @@
 static char *(spo_name_tab[SPO_COUNT]) =
 	    {"ms=", "me=", "hs=", "he=", "rs=", "re=", "lc="};
 
-/*
- * The patterns that are being searched for are stored in a syn_pattern.
- * A match item consists of one pattern.
- * A start/end item consists of n start patterns and m end patterns.
- * A start/skip/end item consists of n start patterns, one skip pattern and m
- * end patterns.
- * For the latter two, the patterns are always consecutive: start-skip-end.
- *
- * A character offset can be given for the matched text (_m_start and _m_end)
- * and for the actually highlighted text (_h_start and _h_end).
- *
- * Note that ordering of members is optimized to reduce padding.
- */
-typedef struct syn_pattern
-{
-    char	 sp_type;		// see SPTYPE_ defines below
-    char	 sp_syncing;		// this item used for syncing
-    short	 sp_syn_match_id;	// highlight group ID of pattern
-    short	 sp_off_flags;		// see below
-    int		 sp_offsets[SPO_COUNT];	// offsets
-    int		 sp_flags;		// see HL_ defines below
-#ifdef FEAT_CONCEAL
-    int		 sp_cchar;		// conceal substitute character
-#endif
-    int		 sp_ic;			// ignore-case flag for sp_prog
-    int		 sp_sync_idx;		// sync item index (syncing only)
-    int		 sp_line_id;		// ID of last line where tried
-    int		 sp_startcol;		// next match in sp_line_id line
-    short	*sp_cont_list;		// cont. group IDs, if non-zero
-    short	*sp_next_list;		// next group IDs, if non-zero
-    struct sp_syn sp_syn;		// struct passed to in_id_list()
-    char_u	*sp_pattern;		// regexp to match, pattern
-    regprog_T	*sp_prog;		// regexp to match, program
-#ifdef FEAT_PROFILE
-    syn_time_T	 sp_time;
-#endif
-} synpat_T;
-
-// The sp_off_flags are computed like this:
-// offset from the start of the matched text: (1 << SPO_XX_OFF)
-// offset from the end	 of the matched text: (1 << (SPO_XX_OFF + SPO_COUNT))
-// When both are present, only one is used.
-
 #define SPTYPE_MATCH	1	// match keyword with this group ID
 #define SPTYPE_START	2	// match a regexp, start of item
 #define SPTYPE_END	3	// match a regexp, end of item
 #define SPTYPE_SKIP	4	// match a regexp, skip within item
-
-
-#define SYN_ITEMS(buf)	((synpat_T *)((buf)->b_syn_patterns.ga_data))
 
 #define NONE_IDX	(-2)	// value of sp_sync_idx for "NONE"
 
@@ -170,8 +124,6 @@ static keyentry_T dumkey;
  * "keepend" on the stack.
  */
 static int keepend_level = -1;
-
-static char msg_no_items[] = N_("No Syntax items defined for this buffer");
 
 /*
  * For the current state we need to remember more than just the idx.
@@ -303,10 +255,6 @@ static int in_id_list(stateitem_T *item, short *cont_list, struct sp_syn *ssp, i
 static int push_current_state(int idx);
 static void pop_current_state(void);
 #ifdef FEAT_PROFILE
-static void syn_clear_time(syn_time_T *tt);
-static void syntime_clear(void);
-static void syntime_report(void);
-static int syn_time_on = FALSE;
 # define IF_SYN_TIME(p) (p)
 #else
 # define IF_SYN_TIME(p) NULL
@@ -3153,7 +3101,7 @@ syn_regexec(
 #ifdef FEAT_PROFILE
     proftime_T	pt;
 
-    if (syn_time_on)
+    if (syntime_on())
 	profile_start(&pt);
 #endif
 
@@ -3167,7 +3115,7 @@ syn_regexec(
     r = vim_regexec_multi(rmp, syn_win, syn_buf, lnum, col, &timed_out);
 
 #ifdef FEAT_PROFILE
-    if (syn_time_on)
+    if (syntime_on())
     {
 	profile_end(&pt);
 	profile_add(&st->total, &pt);
