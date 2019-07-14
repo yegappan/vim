@@ -17,69 +17,13 @@
 
 #define SYN_NAMELEN	50		// maximum length of a syntax name
 
-// different types of offsets that are possible
-#define SPO_MS_OFF	0	// match  start offset
-#define SPO_ME_OFF	1	// match  end	offset
-#define SPO_HS_OFF	2	// highl. start offset
-#define SPO_HE_OFF	3	// highl. end	offset
-#define SPO_RS_OFF	4	// region start offset
-#define SPO_RE_OFF	5	// region end	offset
-#define SPO_LC_OFF	6	// leading context offset
-#define SPO_COUNT	7
-
 static char *(spo_name_tab[SPO_COUNT]) =
 	    {"ms=", "me=", "hs=", "he=", "rs=", "re=", "lc="};
-
-/*
- * The patterns that are being searched for are stored in a syn_pattern.
- * A match item consists of one pattern.
- * A start/end item consists of n start patterns and m end patterns.
- * A start/skip/end item consists of n start patterns, one skip pattern and m
- * end patterns.
- * For the latter two, the patterns are always consecutive: start-skip-end.
- *
- * A character offset can be given for the matched text (_m_start and _m_end)
- * and for the actually highlighted text (_h_start and _h_end).
- *
- * Note that ordering of members is optimized to reduce padding.
- */
-typedef struct syn_pattern
-{
-    char	 sp_type;		// see SPTYPE_ defines below
-    char	 sp_syncing;		// this item used for syncing
-    short	 sp_syn_match_id;	// highlight group ID of pattern
-    short	 sp_off_flags;		// see below
-    int		 sp_offsets[SPO_COUNT];	// offsets
-    int		 sp_flags;		// see HL_ defines below
-#ifdef FEAT_CONCEAL
-    int		 sp_cchar;		// conceal substitute character
-#endif
-    int		 sp_ic;			// ignore-case flag for sp_prog
-    int		 sp_sync_idx;		// sync item index (syncing only)
-    int		 sp_line_id;		// ID of last line where tried
-    int		 sp_startcol;		// next match in sp_line_id line
-    short	*sp_cont_list;		// cont. group IDs, if non-zero
-    short	*sp_next_list;		// next group IDs, if non-zero
-    struct sp_syn sp_syn;		// struct passed to in_id_list()
-    char_u	*sp_pattern;		// regexp to match, pattern
-    regprog_T	*sp_prog;		// regexp to match, program
-#ifdef FEAT_PROFILE
-    syn_time_T	 sp_time;
-#endif
-} synpat_T;
-
-// The sp_off_flags are computed like this:
-// offset from the start of the matched text: (1 << SPO_XX_OFF)
-// offset from the end	 of the matched text: (1 << (SPO_XX_OFF + SPO_COUNT))
-// When both are present, only one is used.
 
 #define SPTYPE_MATCH	1	// match keyword with this group ID
 #define SPTYPE_START	2	// match a regexp, start of item
 #define SPTYPE_END	3	// match a regexp, end of item
 #define SPTYPE_SKIP	4	// match a regexp, skip within item
-
-
-#define SYN_ITEMS(buf)	((synpat_T *)((buf)->b_syn_patterns.ga_data))
 
 #define NONE_IDX	(-2)	// value of sp_sync_idx for "NONE"
 
@@ -172,8 +116,6 @@ static keyentry_T dumkey;
  * "keepend" on the stack.
  */
 static int keepend_level = -1;
-
-static char msg_no_items[] = N_("No Syntax items defined for this buffer");
 
 /*
  * For the current state we need to remember more than just the idx.
@@ -305,10 +247,6 @@ static int in_id_list(stateitem_T *item, short *cont_list, struct sp_syn *ssp, i
 static int push_current_state(int idx);
 static void pop_current_state(void);
 #ifdef FEAT_PROFILE
-static void syn_clear_time(syn_time_T *tt);
-static void syntime_clear(void);
-static void syntime_report(void);
-static int syn_time_on = FALSE;
 # define IF_SYN_TIME(p) (p)
 #else
 # define IF_SYN_TIME(p) NULL
@@ -3145,7 +3083,7 @@ syn_regexec(
 #ifdef FEAT_PROFILE
     proftime_T	pt;
 
-    if (syn_time_on)
+    if (syntime_on())
 	profile_start(&pt);
 #endif
 
@@ -3159,7 +3097,7 @@ syn_regexec(
     r = vim_regexec_multi(rmp, syn_win, syn_buf, lnum, col, &timed_out);
 
 #ifdef FEAT_PROFILE
-    if (syn_time_on)
+    if (syntime_on())
     {
 	profile_end(&pt);
 	profile_add(&st->total, &pt);
@@ -6596,192 +6534,6 @@ syn_get_foldlevel(win_T *wp, long lnum)
 	    level = 0;
     }
     return level;
-}
-#endif
-
-#if defined(FEAT_PROFILE) || defined(PROTO)
-/*
- * ":syntime".
- */
-    void
-ex_syntime(exarg_T *eap)
-{
-    if (STRCMP(eap->arg, "on") == 0)
-	syn_time_on = TRUE;
-    else if (STRCMP(eap->arg, "off") == 0)
-	syn_time_on = FALSE;
-    else if (STRCMP(eap->arg, "clear") == 0)
-	syntime_clear();
-    else if (STRCMP(eap->arg, "report") == 0)
-	syntime_report();
-    else
-	semsg(_(e_invalid_argument_str), eap->arg);
-}
-
-    static void
-syn_clear_time(syn_time_T *st)
-{
-    profile_zero(&st->total);
-    profile_zero(&st->slowest);
-    st->count = 0;
-    st->match = 0;
-}
-
-/*
- * Clear the syntax timing for the current buffer.
- */
-    static void
-syntime_clear(void)
-{
-    int		idx;
-    synpat_T	*spp;
-
-    if (!syntax_present(curwin))
-    {
-	msg(_(msg_no_items));
-	return;
-    }
-    for (idx = 0; idx < curwin->w_s->b_syn_patterns.ga_len; ++idx)
-    {
-	spp = &(SYN_ITEMS(curwin->w_s)[idx]);
-	syn_clear_time(&spp->sp_time);
-    }
-}
-
-/*
- * Function given to ExpandGeneric() to obtain the possible arguments of the
- * ":syntime {on,off,clear,report}" command.
- */
-    char_u *
-get_syntime_arg(expand_T *xp UNUSED, int idx)
-{
-    switch (idx)
-    {
-	case 0: return (char_u *)"on";
-	case 1: return (char_u *)"off";
-	case 2: return (char_u *)"clear";
-	case 3: return (char_u *)"report";
-    }
-    return NULL;
-}
-
-typedef struct
-{
-    proftime_T	total;
-    int		count;
-    int		match;
-    proftime_T	slowest;
-    proftime_T	average;
-    int		id;
-    char_u	*pattern;
-} time_entry_T;
-
-    static int
-syn_compare_syntime(const void *v1, const void *v2)
-{
-    const time_entry_T	*s1 = v1;
-    const time_entry_T	*s2 = v2;
-
-    return profile_cmp(&s1->total, &s2->total);
-}
-
-/*
- * Clear the syntax timing for the current buffer.
- */
-    static void
-syntime_report(void)
-{
-    int		idx;
-    synpat_T	*spp;
-# if defined(FEAT_RELTIME)
-    proftime_T	tm;
-# endif
-    int		len;
-    proftime_T	total_total;
-    int		total_count = 0;
-    garray_T    ga;
-    time_entry_T *p;
-
-    if (!syntax_present(curwin))
-    {
-	msg(_(msg_no_items));
-	return;
-    }
-
-    ga_init2(&ga, sizeof(time_entry_T), 50);
-    profile_zero(&total_total);
-    for (idx = 0; idx < curwin->w_s->b_syn_patterns.ga_len; ++idx)
-    {
-	spp = &(SYN_ITEMS(curwin->w_s)[idx]);
-	if (spp->sp_time.count > 0)
-	{
-	    (void)ga_grow(&ga, 1);
-	    p = ((time_entry_T *)ga.ga_data) + ga.ga_len;
-	    p->total = spp->sp_time.total;
-	    profile_add(&total_total, &spp->sp_time.total);
-	    p->count = spp->sp_time.count;
-	    p->match = spp->sp_time.match;
-	    total_count += spp->sp_time.count;
-	    p->slowest = spp->sp_time.slowest;
-# if defined(FEAT_RELTIME)
-	    profile_divide(&spp->sp_time.total, spp->sp_time.count, &tm);
-	    p->average = tm;
-# endif
-	    p->id = spp->sp_syn.id;
-	    p->pattern = spp->sp_pattern;
-	    ++ga.ga_len;
-	}
-    }
-
-    // Sort on total time. Skip if there are no items to avoid passing NULL
-    // pointer to qsort().
-    if (ga.ga_len > 1)
-	qsort(ga.ga_data, (size_t)ga.ga_len, sizeof(time_entry_T),
-							 syn_compare_syntime);
-
-    msg_puts_title(_("  TOTAL      COUNT  MATCH   SLOWEST     AVERAGE   NAME               PATTERN"));
-    msg_puts("\n");
-    for (idx = 0; idx < ga.ga_len && !got_int; ++idx)
-    {
-	p = ((time_entry_T *)ga.ga_data) + idx;
-
-	msg_puts(profile_msg(&p->total));
-	msg_puts(" "); // make sure there is always a separating space
-	msg_advance(13);
-	msg_outnum(p->count);
-	msg_puts(" ");
-	msg_advance(20);
-	msg_outnum(p->match);
-	msg_puts(" ");
-	msg_advance(26);
-	msg_puts(profile_msg(&p->slowest));
-	msg_puts(" ");
-	msg_advance(38);
-	msg_puts(profile_msg(&p->average));
-	msg_puts(" ");
-	msg_advance(50);
-	msg_outtrans(highlight_group_name(p->id - 1));
-	msg_puts(" ");
-
-	msg_advance(69);
-	if (Columns < 80)
-	    len = 20; // will wrap anyway
-	else
-	    len = Columns - 70;
-	if (len > (int)STRLEN(p->pattern))
-	    len = (int)STRLEN(p->pattern);
-	msg_outtrans_len(p->pattern, len);
-	msg_puts("\n");
-    }
-    ga_clear(&ga);
-    if (!got_int)
-    {
-	msg_puts("\n");
-	msg_puts(profile_msg(&total_total));
-	msg_advance(13);
-	msg_outnum(total_count);
-	msg_puts("\n");
-    }
 }
 #endif
 
