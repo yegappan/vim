@@ -19,6 +19,4 @@ int get_syntax_info(int *seqnrp);
 int syn_get_sub_char(void);
 int syn_get_stack_item(int i);
 int syn_get_foldlevel(win_T *wp, long lnum);
-void ex_syntime(exarg_T *eap);
-char_u *get_syntime_arg(expand_T *xp, int idx);
 /* vim: set ft=c : */
