@@ -32,4 +32,8 @@ void profile_dump(void);
 void script_line_start(void);
 void script_line_exec(void);
 void script_line_end(void);
+void syn_clear_time(syn_time_T *tt);
+int syntime_on(void);
+void ex_syntime(exarg_T *eap);
+char_u *get_syntime_arg(expand_T *xp, int idx);
 /* vim: set ft=c : */
