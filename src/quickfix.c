@@ -122,6 +122,7 @@ static qf_info_T ql_info_actual; // global quickfix list
 static qf_info_T *ql_info;	// points to ql_info_actual if memory allocation is successful.
 static int_u last_qf_id = 0;	// Last used quickfix list id
 
+# define FOR_ALL_QF_LISTIDXS(qi,i)	for (i = 0; i < qi->qf_listcount; ++i)
 # define FMT_PATTERNS 14		// maximum number of % recognized
 
 /*
@@ -2705,7 +2706,7 @@ copy_loclist_stack(win_T *from, win_T *to)
     to->w_llist->qf_listcount = qi->qf_listcount;
 
     // Copy the location lists one at a time
-    for (idx = 0; idx < qi->qf_listcount; ++idx)
+    FOR_ALL_QF_LISTIDXS(qi, idx)
     {
 	to->w_llist->qf_curlist = idx;
 
@@ -2976,7 +2977,7 @@ qflist_valid(win_T *wp, int_u qf_id)
     if (qi == NULL)
 	return FALSE;
 
-    for (i = 0; i < qi->qf_listcount; ++i)
+    FOR_ALL_QF_LISTIDXS(qi, i)
 	if (qi->qf_lists[i].qf_id == qf_id)
 	    return TRUE;
 
@@ -4258,7 +4259,7 @@ qf_history(exarg_T *eap)
     if (qf_stack_empty(qi))
 	msg(_("No entries"));
     else
-	for (i = 0; i < qi->qf_listcount; ++i)
+	FOR_ALL_QF_LISTIDXS(qi, i)
 	    qf_msg(qi, i, i == qi->qf_curlist ? "> " : "  ");
 }
 
@@ -4358,7 +4359,7 @@ qf_mark_adjust(
     else if (qi == NULL)
 	return;
 
-    for (idx = 0; idx < qi->qf_listcount; ++idx)
+    FOR_ALL_QF_LISTIDXS(qi, idx)
     {
 	qf_list_T	*qfl = qf_get_list(qi, idx);
 
@@ -5271,7 +5272,7 @@ qf_id2nr(qf_info_T *qi, int_u qfid)
 {
     int		qf_idx;
 
-    for (qf_idx = 0; qf_idx < qi->qf_listcount; qf_idx++)
+    FOR_ALL_QF_LISTIDXS(qi, qf_idx)
 	if (qi->qf_lists[qf_idx].qf_id == qfid)
 	    return qf_idx;
     return INVALID_QFIDX;
