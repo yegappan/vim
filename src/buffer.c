@@ -2681,6 +2681,103 @@ typedef struct {
 #endif
 
 /*
+ * Expand buffer names using fuzzy matching
+ */
+    static int
+expand_bufnames_fuzzy(
+    char_u	*pat,
+    int		*num_file,
+    char_u	***file,
+    int		options)
+{
+    int		    score;
+    fuzmatch_str_T  *fuzmatch;
+    int		    count;
+    buf_T	    *buf;
+    int		    round;
+    char_u	    *p;
+
+    // round == 1: Count the matches.
+    // round == 2: Build the array to keep the matches.
+    for (round = 1; round <= 2; ++round)
+    {
+	count = 0;
+	FOR_ALL_BUFFERS(buf)
+	{
+	    if (!buf->b_p_bl)	// skip unlisted buffers
+		continue;
+#ifdef FEAT_DIFF
+	    if (options & BUF_DIFF_FILTER)
+		// Skip buffers not suitable for
+		// :diffget or :diffput completion.
+		if (buf == curbuf || !diff_mode_buf(buf))
+		    continue;
+#endif
+
+	    p = NULL;
+	    // first try matching with the short file name
+	    if ((score = fuzzy_match_str(buf->b_sfname, pat)) != 0)
+		p = buf->b_sfname;
+	    if (p == NULL)
+	    {
+		// next try matching with the full path file name
+		if ((score = fuzzy_match_str(buf->b_ffname, pat)) != 0)
+		    p = buf->b_ffname;
+	    }
+	    if (p != NULL)
+	    {
+		if (round == 1)
+		    ++count;
+		else
+		{
+		    if (options & WILD_HOME_REPLACE)
+			p = home_replace_save(buf, p);
+		    else
+			p = vim_strsave(p);
+		    fuzmatch[count].idx = count;
+		    fuzmatch[count].str = p;
+		    fuzmatch[count].score = score;
+		    count++;
+		}
+	    }
+	}
+
+	if (count == 0)	// no match found, break here
+	    break;
+	if (round == 1)
+	{
+	    fuzmatch = ALLOC_MULT(fuzmatch_str_T, count);
+	    if (fuzmatch == NULL)
+	    {
+		*num_file = 0;
+		*file = NULL;
+		return FAIL;
+	    }
+	}
+    }
+
+    *num_file = count;
+    if (count > 0)
+    {
+	int		i;
+
+	*file = ALLOC_MULT(char_u *, count);
+	if (*file == NULL)
+	{
+	    vim_free(fuzmatch);
+	    return FAIL;
+	}
+
+	// Sort the list by the descending order of the match score
+	fuzzy_match_str_sort((void *)fuzmatch, (size_t)count);
+	for (i = 0; i < count; i++)
+	    (*file)[i] = fuzmatch[i].str;
+	vim_free(fuzmatch);
+    }
+    return (count == 0 ? FAIL : OK);
+}
+
+/*
  * Find all buffer names that match.
  * For command line expansion of ":buf" and ":sbuf".
  * Return OK if matches found, FAIL otherwise.
@@ -2709,6 +2806,10 @@ ExpandBufnames(
     if ((options & BUF_DIFF_FILTER) && !curwin->w_p_diff)
 	return FAIL;
 #endif
+
+    if (*p_wop == 'm' && *pat != NUL)
+	// Do fuzzy matching if the specified pattern is not empty
+	return expand_bufnames_fuzzy(pat, num_file, file, options);
 
     // Make a copy of "pat" and change "^" to "\(^\|[\/]\)".
     if (*pat == '^')

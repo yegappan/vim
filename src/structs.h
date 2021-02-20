@@ -4419,3 +4419,10 @@ typedef struct {
     char    wt_variable;    // "variable" when TRUE, "argument" otherwise
 } where_T;
 
+// Fuzzy matched string list item. Used for fuzzy match completion. Items are
+// usually sorted by 'score'. The 'idx' member is used for stable-sort.
+typedef struct {
+    int		idx;
+    char_u	*str;
+    int		score;
+} fuzmatch_str_T;
