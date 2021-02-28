@@ -6917,7 +6917,7 @@ var2fpos(
     }
     if (pos.lnum != 0)
     {
-	if (charcol)
+	if (charcol && pos.col != MAXCOL)
 	    pos.col = buf_byteidx_to_charidx(curbuf, pos.lnum, pos.col);
 	return &pos;
     }
@@ -7019,7 +7019,7 @@ list2fpos(
 	return FAIL;
     // If character position is specified, then convert to byte position
     // If the line number is zero use the cursor line.
-    if (charcol)
+    if (charcol && n != MAXCOL)
     {
 	buf_T	*buf;
 
