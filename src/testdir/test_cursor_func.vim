@@ -365,6 +365,16 @@ func Test_getcharpos()
                         \ [0, 2, 7, 0]], g:InsertCurrentPos)
   iunmap <F3>
 
+  " Test for MAXCOL value in column
+  %d _
+  call setline(1, ['Line1'])
+  exe "normal V\e"
+  call assert_equal(getpos("'<"), getcharpos("'<"))
+  call assert_equal(getpos("'>"), getcharpos("'>"))
+  exe "normal $"
+  call assert_equal(getpos("."), getcharpos("."))
+  call assert_equal(getcurpos(), getcursorcharpos())
+
   %bw!
 endfunc
 
