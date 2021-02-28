@@ -5266,7 +5266,7 @@ var2fpos(
     if (name[0] == '.')				// cursor
     {
 	pos = curwin->w_cursor;
-	if (charcol)
+	if (charcol && pos.col != MAXCOL)
 	    pos.col = buf_byteidx_to_charidx(curbuf, pos.lnum, pos.col);
 	return &pos;
     }
@@ -5276,7 +5276,7 @@ var2fpos(
 	    pos = VIsual;
 	else
 	    pos = curwin->w_cursor;
-	if (charcol)
+	if (charcol && pos.col != MAXCOL)
 	    pos.col = buf_byteidx_to_charidx(curbuf, pos.lnum, pos.col);
 	return &pos;
     }
@@ -5285,7 +5285,7 @@ var2fpos(
 	pp = getmark_buf_fnum(curbuf, name[1], FALSE, fnum);
 	if (pp == NULL || pp == (pos_T *)-1 || pp->lnum <= 0)
 	    return NULL;
-	if (charcol)
+	if (charcol && pp->col != MAXCOL)
 	    pp->col = buf_byteidx_to_charidx(curbuf, pp->lnum, pp->col);
 	return pp;
     }
@@ -5378,7 +5378,7 @@ list2fpos(
     if (n < 0)
 	return FAIL;
     // If character position is specified, then convert to byte position
-    if (charcol)
+    if (charcol && n != MAXCOL)
     {
 	buf_T	*buf;
 
