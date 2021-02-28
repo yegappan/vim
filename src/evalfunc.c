@@ -5786,8 +5786,10 @@ getpos_both(
 	    if (fp != NULL && charcol)
 	    {
 		pos = *fp;
-		pos.col =
-		    buf_byteidx_to_charidx(wp->w_buffer, pos.lnum, pos.col);
+		if (fp->col != MAXCOL)
+		    pos.col =
+			buf_byteidx_to_charidx(wp->w_buffer, pos.lnum,
+								pos.col);
 		fp = &pos;
 	    }
 	}
