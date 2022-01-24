@@ -5832,6 +5832,94 @@ showoptions(
     vim_free(items);
 }
 
+    void
+options_list_get(list_T *l, int what)
+{
+    struct vimoption	*p;
+    listitem_T		*li;
+    char_u		*varp;
+
+    for (p = &options[0]; p->fullname != NULL; p++)
+    {
+	if (p->var == NULL)	// hidden option
+	    continue;
+
+	li = listitem_alloc();
+	if (li == NULL)
+	    break;
+	list_append(l, li);
+
+	if (what == 0)
+	{
+	    // keys()
+	    li->li_tv.v_type = VAR_STRING;
+	    li->li_tv.v_lock = 0;
+	    li->li_tv.vval.v_string = vim_strsave((char_u *)p->fullname);
+	}
+	else if (what == 1)
+	{
+	    // values()
+	    if (p->flags & (P_NUM | P_STRING))
+	    {
+		option_value2string(p, OPT_GLOBAL);
+		li->li_tv.v_type = VAR_STRING;
+		li->li_tv.v_lock = 0;
+		li->li_tv.vval.v_string = vim_strsave((char_u *)NameBuff);
+	    }
+	    else
+	    {
+		// boolean option
+		varp = get_varp_scope(p, OPT_GLOBAL);
+		li->li_tv.v_type = VAR_BOOL;
+		li->li_tv.v_lock = 0;
+		li->li_tv.vval.v_number = *(int *)varp;
+	    }
+	}
+	else
+	{
+	    list_T	*l2;
+	    listitem_T	*li2;
+
+	    // items()
+	    l2 = list_alloc();
+	    li->li_tv.v_type = VAR_LIST;
+	    li->li_tv.v_lock = 0;
+	    li->li_tv.vval.v_list = l2;
+	    if (l2 == NULL)
+		break;
+	    ++l2->lv_refcount;
+
+	    li2 = listitem_alloc();
+	    if (li2 == NULL)
+		break;
+	    list_append(l2, li2);
+	    li2->li_tv.v_type = VAR_STRING;
+	    li2->li_tv.v_lock = 0;
+	    li2->li_tv.vval.v_string = vim_strsave((char_u *)p->fullname);
+
+	    li2 = listitem_alloc();
+	    if (li2 == NULL)
+		break;
+	    list_append(l2, li2);
+	    if (p->flags & (P_NUM | P_STRING))
+	    {
+		option_value2string(p, OPT_GLOBAL);
+		li2->li_tv.v_type = VAR_STRING;
+		li2->li_tv.v_lock = 0;
+		li2->li_tv.vval.v_string = vim_strsave((char_u *)NameBuff);
+	    }
+	    else
+	    {
+		// boolean option
+		varp = get_varp_scope(p, OPT_GLOBAL);
+		li2->li_tv.v_type = VAR_BOOL;
+		li2->li_tv.v_lock = 0;
+		li2->li_tv.vval.v_number = *(int *)varp;
+	    }
+	}
+    }
+}
+
 /*
  * Return TRUE if option "p" has its default value.
  */

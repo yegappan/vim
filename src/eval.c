@@ -5733,7 +5733,10 @@ eval_index_inner(
 			return FAIL;
 		}
 
-		item = dict_find(rettv->vval.v_dict, key, keylen);
+		if (rettv->vval.v_dict == get_vim_var_opt_dict())
+		    return vim_var_opt_get_tv(key, keylen, rettv);
+		else
+		    item = dict_find(rettv->vval.v_dict, key, keylen);
 
 		if (item == NULL)
 		{
