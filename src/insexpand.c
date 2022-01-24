@@ -1826,7 +1826,7 @@ ins_compl_clear(void)
     compl_enter_selects = FALSE;
 #ifdef FEAT_EVAL
     // clear v:completed_item
-    set_vim_var_dict(VV_COMPLETED_ITEM, dict_alloc_lock(VAR_FIXED));
+    set_vim_var_dict(VV_COMPLETED_ITEM, dict_alloc_lock(VAR_FIXED), TRUE);
 #endif
 }
 
@@ -4182,7 +4182,7 @@ ins_compl_delete(void)
     changed_cline_bef_curs();
 #ifdef FEAT_EVAL
     // clear v:completed_item
-    set_vim_var_dict(VV_COMPLETED_ITEM, dict_alloc_lock(VAR_FIXED));
+    set_vim_var_dict(VV_COMPLETED_ITEM, dict_alloc_lock(VAR_FIXED), TRUE);
 #endif
 }
 
@@ -4207,7 +4207,7 @@ ins_compl_insert(int in_compl_func)
     {
 	dict_T *dict = ins_compl_dict_alloc(compl_shown_match);
 
-	set_vim_var_dict(VV_COMPLETED_ITEM, dict);
+	set_vim_var_dict(VV_COMPLETED_ITEM, dict, TRUE);
     }
 #endif
     if (!in_compl_func)
