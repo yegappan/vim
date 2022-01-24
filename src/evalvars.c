@@ -161,6 +161,7 @@ static struct vimvar
     {VV_NAME("t_typealias",	 VAR_NUMBER), NULL, VV_RO},
     {VV_NAME("t_enum",		 VAR_NUMBER), NULL, VV_RO},
     {VV_NAME("t_enumvalue",	 VAR_NUMBER), NULL, VV_RO},
+    {VV_NAME("vim",		 VAR_DICT), NULL, VV_RO},
 };
 
 // shorthand
@@ -199,6 +200,7 @@ evalvars_init(void)
 {
     int		    i;
     struct vimvar   *p;
+    dict_T	    *d;
 
     init_var_dict(&globvardict, &globvars_var, VAR_DEF_SCOPE);
     init_var_dict(&vimvardict, &vimvars_var, VAR_SCOPE);
@@ -234,9 +236,9 @@ evalvars_init(void)
     set_vim_var_nr(VV_SEARCHFORWARD, 1L);
     set_vim_var_nr(VV_HLSEARCH, 1L);
     set_vim_var_nr(VV_EXITING, VVAL_NULL);
-    set_vim_var_dict(VV_COMPLETED_ITEM, dict_alloc_lock(VAR_FIXED));
+    set_vim_var_dict(VV_COMPLETED_ITEM, dict_alloc_lock(VAR_FIXED), TRUE);
     set_vim_var_list(VV_ERRORS, list_alloc());
-    set_vim_var_dict(VV_EVENT, dict_alloc_lock(VAR_FIXED));
+    set_vim_var_dict(VV_EVENT, dict_alloc_lock(VAR_FIXED), TRUE);
 
     set_vim_var_nr(VV_FALSE, VVAL_FALSE);
     set_vim_var_nr(VV_TRUE, VVAL_TRUE);
@@ -269,7 +271,15 @@ evalvars_init(void)
 
     set_vim_var_nr(VV_ECHOSPACE,    sc_col - 1);
 
-    set_vim_var_dict(VV_COLORNAMES, dict_alloc());
+    set_vim_var_dict(VV_COLORNAMES, dict_alloc(), TRUE);
+
+    d = dict_alloc();
+    if (d != NULL)
+    {
+	dict_T	*opt_d = dict_alloc();
+	dict_add_dict(d, "opt", opt_d);
+    }
+    set_vim_var_dict(VV_VIM, d, FALSE);
 
 #ifdef FEAT_PYTHON3
     set_vim_var_nr(VV_PYTHON3_VERSION, python3_version());
@@ -1857,6 +1867,33 @@ ex_let_register(
     return arg_end;
 }
 
+    static char_u *
+vim_var_opt_set_tv(
+	char_u		*lval_name,
+	typval_T	*tv,
+	int		flags,
+	char_u		*endchars,
+	char_u		*op)
+{
+    char_u	*p;
+    int		len;
+    char_u	*arg_end = NULL;
+
+    len = STRLEN(lval_name) + 2 - 10;
+    p = alloc(len);
+    if (p == NULL)
+	return NULL;
+
+    p[0] = '&';
+    p[1] = NUL;
+    // skip 'v:vim.opt.'
+    vim_strcat(p, lval_name + 10, len);
+    arg_end = ex_let_option(p, tv, flags, endchars, op);
+    vim_free(p);
+
+    return arg_end;
+}
+
 /*
  * Set one item of ":let var = expr" or ":let [v1, v2] = list" to its value.
  * Returns a pointer to the char just after the var name.
@@ -1926,8 +1963,21 @@ ex_let_one(
 	    }
 	    else
 	    {
-		set_var_lval(&lv, p, tv, copy, flags, op, var_idx);
-		arg_end = lv.ll_name_end;
+		if (lv.ll_dict != NULL && lv.ll_dict == get_vim_var_opt_dict())
+		{
+		    arg_end = vim_var_opt_set_tv(lv.ll_name, tv, flags,
+								endchars, op);
+		    if (arg_end == NULL)
+		    {
+			clear_lval(&lv);
+			return NULL;
+		    }
+		}
+		else
+		{
+		    set_var_lval(&lv, p, tv, copy, flags, op, var_idx);
+		    arg_end = lv.ll_name_end;
+		}
 	    }
 	}
 	clear_lval(&lv);
@@ -2759,6 +2809,32 @@ get_vim_var_dict(int idx)
 }
 
 /*
+ * Return the vim.opt dict.
+ */
+    dict_T *
+get_vim_var_opt_dict(void)
+{
+    static dict_T	*opt_dict = NULL;
+    dict_T		*d;
+    dictitem_T		*di;
+
+    if (opt_dict == NULL)
+    {
+	d = get_vim_var_dict(VV_VIM);
+	if (d == NULL)
+	    return NULL;
+
+	di = dict_find(d, (char_u *)"opt", -1);
+	if (di == NULL)
+	    return NULL;
+
+	opt_dict = di->di_tv.vval.v_dict;
+    }
+
+    return opt_dict;
+}
+
+/*
  * Set v:char to character "c".
  */
     void
@@ -2852,7 +2928,7 @@ set_vim_var_list(int idx, list_T *val)
  * Set Dictionary v: variable to "val".
  */
     void
-set_vim_var_dict(int idx, dict_T *val)
+set_vim_var_dict(int idx, dict_T *val, int readonly_items)
 {
     clear_tv(&vimvars[idx].vv_di.di_tv);
     vimvars[idx].vv_tv_type = VAR_DICT;
@@ -2861,7 +2937,8 @@ set_vim_var_dict(int idx, dict_T *val)
 	return;
 
     ++val->dv_refcount;
-    dict_set_items_ro(val);
+    if (readonly_items)
+	dict_set_items_ro(val);
 }
 
 /*
@@ -2916,6 +2993,32 @@ set_reg_var(int c)
     // Avoid free/alloc when the value is already right.
     if (vimvars[VV_REG].vv_str == NULL || vimvars[VV_REG].vv_str[0] != c)
 	set_vim_var_string(VV_REG, &regname, 1);
+}
+
+    int
+vim_var_opt_get_tv(char_u *optname, int optlen, typval_T *rettv)
+{
+    char_u	*p;
+    char_u	*save_p;
+    int		len;
+    int		status;
+
+    len = optlen;
+    if (len <= 0)
+	len = STRLEN(optname);
+    len += 2;
+    p = alloc(len);
+    if (p == NULL)
+	return FAIL;
+
+    p[0] = '&';
+    p[1] = NUL;
+    vim_strcat(p, optname, len);
+    save_p = p;
+    status = eval_option(&p, rettv, TRUE);
+    vim_free(save_p);
+
+    return status;
 }
 
 /*

@@ -5099,6 +5099,12 @@ f_get(typval_T *argvars, typval_T *rettv)
     {
 	if ((d = argvars[0].vval.v_dict) != NULL)
 	{
+	    if (d == get_vim_var_opt_dict())
+	    {
+		vim_var_opt_get_tv(tv_get_string(&argvars[1]), -1, rettv);
+		return;
+	    }
+
 	    di = dict_find(d, tv_get_string(&argvars[1]), -1);
 	    if (di != NULL)
 		tv = &di->di_tv;
