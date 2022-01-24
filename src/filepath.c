@@ -1611,7 +1611,7 @@ checkitem_common(void *context, char_u *name, dict_T *dict)
     }
     else
     {
-	set_vim_var_dict(VV_VAL, dict);
+	set_vim_var_dict(VV_VAL, dict, TRUE);
 	argv[0].v_type = VAR_DICT;
 	argv[0].vval.v_dict = dict;
     }
@@ -1634,7 +1634,7 @@ theend:
     if (name != NULL)
 	set_vim_var_string(VV_VAL, NULL, 0);
     else
-	set_vim_var_dict(VV_VAL, NULL);
+	set_vim_var_dict(VV_VAL, NULL, TRUE);
     restore_vimvar(VV_VAL, &save_val);
     return retval;
 }
