@@ -1540,6 +1540,13 @@ dict2list(typval_T *argvars, typval_T *rettv, dict2list_T what)
 	// NULL dict behaves like an empty dict
 	return;
 
+    if (d == get_vim_var_opt_dict())
+    {
+	// v:vim.opt dict
+	options_list_get(rettv->vval.v_list, what);
+	return;
+    }
+
     todo = (int)d->dv_hashtab.ht_used;
     FOR_ALL_HASHTAB_ITEMS(&d->dv_hashtab, hi, todo)
     {
@@ -1652,7 +1659,11 @@ f_has_key(typval_T *argvars, typval_T *rettv)
     if (argvars[0].vval.v_dict == NULL)
 	return;
 
-    rettv->vval.v_number = dict_has_key(argvars[0].vval.v_dict,
+    if (argvars[0].vval.v_dict == get_vim_var_opt_dict())
+	rettv->vval.v_number = vim_var_opt_get_tv(tv_get_string(&argvars[1]),
+								-1, NULL);
+    else
+	rettv->vval.v_number = dict_has_key(argvars[0].vval.v_dict,
 				(char *)tv_get_string(&argvars[1]));
 }
 
