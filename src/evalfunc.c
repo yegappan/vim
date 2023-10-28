@@ -758,15 +758,16 @@ arg_string_or_func(type_T *type, type_T *decl_type UNUSED, argcontext_T *context
 }
 
 /*
- * Check "type" is a list of 'any' or a class.
+ * Check "type" is a class.
  */
     static int
-arg_class_or_list(type_T *type, type_T *decl_type UNUSED, argcontext_T *context)
+arg_class(type_T *type, type_T *decl_type UNUSED, argcontext_T *context)
 {
     if (type->tt_type == VAR_CLASS
-	    || type->tt_type == VAR_LIST
-	    || type_any_or_unknown(type))
+	//|| type->tt_type == VAR_TYPEALIAS
+	)
 	return OK;
+    // TODO: consider TYPEALIAS in following
     arg_type_mismatch(&t_class, type, context->arg_idx + 1);
     return FAIL;
 }
@@ -1152,7 +1153,8 @@ static argcheck_T arg1_len[] = {arg_len1};
 static argcheck_T arg3_libcall[] = {arg_string, arg_string, arg_string_or_nr};
 static argcheck_T arg14_maparg[] = {arg_string, arg_string, arg_bool, arg_bool};
 static argcheck_T arg2_filter[] = {arg_list_or_dict_or_blob_or_string_mod, arg_filter_func};
-static argcheck_T arg2_instanceof[] = {arg_object, arg_class_or_list};
+// TODO: instead of arg_class, could have args_class followed by 17 NULLs
+static argcheck_T arg219_instanceof[] = {arg_object, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class, arg_class};
 static argcheck_T arg2_map[] = {arg_list_or_dict_or_blob_or_string_mod, arg_map_func};
 static argcheck_T arg2_mapnew[] = {arg_list_or_dict_or_blob_or_string, NULL};
 static argcheck_T arg25_matchadd[] = {arg_string, arg_string, arg_number, arg_number, arg_dict_any};
@@ -1627,7 +1629,7 @@ typedef struct
     char	*f_name;	// function name
     char	f_min_argc;	// minimal number of arguments
     char	f_max_argc;	// maximal number of arguments
-    char	f_argtype;	// for method: FEARG_ values
+    char	f_argtype;	// for method: FEARG_ values; bits FEFLG_
     argcheck_T	*f_argcheck;	// list of functions to check argument types
     type_T	*(*f_retfunc)(int argcount, type2_T *argtypes,
 							   type_T **decl_type);
@@ -1637,10 +1639,12 @@ typedef struct
 } funcentry_T;
 
 // values for f_argtype; zero means it cannot be used as a method
-#define FEARG_1    1	    // base is the first argument
-#define FEARG_2    2	    // base is the second argument
-#define FEARG_3    3	    // base is the third argument
-#define FEARG_4    4	    // base is the fourth argument
+#define FEARG_1    0x01	    // base is the first argument
+#define FEARG_2    0x02	    // base is the second argument
+#define FEARG_3    0x03	    // base is the third argument
+#define FEARG_4    0x04	    // base is the fourth argument
+#define FEARG_MASK 0x0F	    // bits in f_argtype used as argument index
+#define FE_X	   0x10	    // builtin accepts a non-value (class, typealias)
 
 #if defined(HAVE_MATH_H)
 # define MATH_FUNC(name) name
@@ -2152,7 +2156,7 @@ static funcentry_T global_functions[] =
 			ret_string,	    f_inputsecret},
     {"insert",		2, 3, FEARG_1,	    arg23_insert,
 			ret_first_arg,	    f_insert},
-    {"instanceof",	2, 2, FEARG_1,	    arg2_instanceof,
+    {"instanceof",	2, 19, FEARG_1|FE_X, arg219_instanceof,
 			ret_bool,	    f_instanceof},
     {"interrupt",	0, 0, 0,	    NULL,
 			ret_void,	    f_interrupt},
@@ -2630,7 +2634,7 @@ static funcentry_T global_functions[] =
 			ret_number,	    f_strgetchar},
     {"stridx",		2, 3, FEARG_1,	    arg3_string_string_number,
 			ret_number,	    f_stridx},
-    {"string",		1, 1, FEARG_1,	    NULL,
+    {"string",		1, 1, FEARG_1|FE_X, NULL,
 			ret_string,	    f_string},
     {"strlen",		1, 1, FEARG_1,	    arg1_string_or_nr,
 			ret_number,	    f_strlen},
@@ -2824,9 +2828,9 @@ static funcentry_T global_functions[] =
 			ret_string,	    f_trim},
     {"trunc",		1, 1, FEARG_1,	    arg1_float_or_nr,
 			ret_float,	    f_trunc},
-    {"type",		1, 1, FEARG_1,	    NULL,
+    {"type",		1, 1, FEARG_1|FE_X, NULL,
 			ret_number,	    f_type},
-    {"typename",	1, 1, FEARG_1,	    NULL,
+    {"typename",	1, 1, FEARG_1|FE_X, NULL,
 			ret_string,	    f_typename},
     {"undofile",	1, 1, FEARG_1,	    arg1_string,
 			ret_string,	    f_undofile},
@@ -3115,7 +3119,7 @@ check_internal_func(int idx, int argcount)
     else if (argcount > global_functions[idx].f_max_argc)
 	res = FCERR_TOOMANY;
     else
-	return global_functions[idx].f_argtype;
+	return global_functions[idx].f_argtype & FEARG_MASK;
 
     name = internal_func_name(idx);
     if (res == FCERR_TOOMANY)
@@ -3142,6 +3146,13 @@ call_internal_func(
     if (argcount > global_functions[i].f_max_argc)
 	return FCERR_TOOMANY;
     argvars[argcount].v_type = VAR_UNKNOWN;
+    // check arguments for functions that can't handle non-values
+    if (!(global_functions[i].f_argtype & FE_X))
+    {
+	for (int idx = 0; idx < argcount; ++idx)
+	    if (check_is_value(argvars[idx].v_type) == FAIL)
+		return FCERR_OTHER;
+    }
     global_functions[i].f_func(argvars, rettv);
     return FCERR_NONE;
 }
@@ -3172,14 +3183,14 @@ call_internal_method(
     fi = find_internal_func(name);
     if (fi < 0)
 	return FCERR_UNKNOWN;
-    if (global_functions[fi].f_argtype == 0)
+    if ((global_functions[fi].f_argtype & FEARG_MASK) == 0)
 	return FCERR_NOTMETHOD;
     if (argcount + 1 < global_functions[fi].f_min_argc)
 	return FCERR_TOOFEW;
     if (argcount + 1 > global_functions[fi].f_max_argc)
 	return FCERR_TOOMANY;
 
-    if (global_functions[fi].f_argtype == FEARG_2)
+    if ((global_functions[fi].f_argtype & FEARG_MASK) == FEARG_2)
     {
 	if (argcount < 1)
 	    return FCERR_TOOFEW;
@@ -3190,7 +3201,7 @@ call_internal_method(
 	for (int i = 1; i < argcount; ++i)
 	    argv[i + 1] = argvars[i];
     }
-    else if (global_functions[fi].f_argtype == FEARG_3)
+    else if ((global_functions[fi].f_argtype & FEARG_MASK) == FEARG_3)
     {
 	if (argcount < 2)
 	    return FCERR_TOOFEW;
@@ -3202,7 +3213,7 @@ call_internal_method(
 	for (int i = 2; i < argcount; ++i)
 	    argv[i + 1] = argvars[i];
     }
-    else if (global_functions[fi].f_argtype == FEARG_4)
+    else if ((global_functions[fi].f_argtype & FEARG_MASK) == FEARG_4)
     {
 	if (argcount < 3)
 	    return FCERR_TOOFEW;

@@ -190,7 +190,7 @@ def Test_class_basic()
     endclass
     sort([1.1, A], 'f')
   END
-  v9.CheckSourceFailure(lines, 'E1321: Using a Class as a Float', 4)
+  v9.CheckSourceFailure(lines, 'E1400: Cannot use a class as a variable or value', 4)
 
   # Test for using object as a float
   lines =<< trim END
@@ -3093,7 +3093,36 @@ def Test_closure_in_class()
   v9.CheckSourceSuccess(lines)
 enddef
 
-def Test_call_constructor_from_legacy()
+" Cannot assign a class to a variable
+def Test_assign_class_to_variable()
+  # script level
+  var lines =<< trim END
+    vim9script
+
+    class C
+    endclass
+
+    var X = C
+  END
+  v9.CheckSourceFailure(lines, 'E1400: Cannot use a class as a variable or value', 6)
+
+  # :def
+  lines =<< trim END
+    vim9script
+
+    class C
+    endclass
+
+    def F()
+      var X = C
+    enddef
+    F()
+  END
+  v9.CheckSourceFailure(lines, 'E1400: Cannot use a class as a variable or value', 1)
+enddef
+
+def Test_construct_object_from_legacy()
+  # Cannot directly invoke constructor from legacy
   var lines =<< trim END
     vim9script
 
@@ -3105,13 +3134,67 @@ def Test_call_constructor_from_legacy()
       enddef
     endclass
 
-    export def F(options = {}): any
-      return A
+    export def CreateA(options = {}): any
+      return A.new()
     enddef
 
-    g:p = F()
-    legacy call p.new()
+    g:P = CreateA
+    legacy call g:P()
     assert_equal('true', newCalled)
+    unlet g:P
+  END
+  v9.CheckSourceSuccess(lines)
+
+  # TODO: The following works, but there is no export;
+  #       is there a problem?
+  lines =<< trim END
+    vim9script
+
+    var newCalled = 'false'
+
+    class A
+      static def CreateA(options = {}): any
+        return A.new()
+      enddef
+      def new()
+        newCalled = 'true'
+      enddef
+    endclass
+
+    g:P = A.CreateA
+    legacy call g:P()
+    assert_equal('true', newCalled)
+    unlet g:P
+  END
+  v9.CheckSourceSuccess(lines)
+
+  # This also tests invoking "new()" with "call"
+  lines =<< trim END
+    vim9script
+
+    var newCalled = 'false'
+    var createdObject: any
+
+    class A
+      this.val1: number
+      this.val2: number
+      static def CreateA(...args: list<any>): any
+        createdObject = call(A.new, args)
+        return createdObject
+      enddef
+    endclass
+
+    g:P = A.CreateA
+    legacy call g:P(3, 5)
+    assert_equal(3, createdObject.val1)
+    assert_equal(5, createdObject.val2)
+    legacy call g:P()
+    assert_equal(0, createdObject.val1)
+    assert_equal(0, createdObject.val2)
+    legacy call g:P(7)
+    assert_equal(7, createdObject.val1)
+    assert_equal(0, createdObject.val2)
+    unlet g:P
   END
   v9.CheckSourceSuccess(lines)
 enddef
@@ -3284,8 +3367,7 @@ def Test_instanceof()
     assert_true(instanceof(b2, Base1))
     assert_false(instanceof(b1, Base2))
     assert_true(instanceof(b3, Mix1))
-    assert_false(instanceof(b3, []))
-    assert_true(instanceof(b3, [Base1, Base2, Intf1]))
+    assert_true(instanceof(b3, Base1, Base2, Intf1))
 
     def Foo()
       var a1 = Base1.new()
@@ -3296,8 +3378,7 @@ def Test_instanceof()
       assert_true(instanceof(a2, Base1))
       assert_false(instanceof(a1, Base2))
       assert_true(instanceof(a3, Mix1))
-      assert_false(instanceof(a3, []))
-      assert_true(instanceof(a3, [Base1, Base2, Intf1]))
+      assert_true(instanceof(a3, Base1, Base2, Intf1))
     enddef
     Foo()
 
@@ -3306,6 +3387,58 @@ def Test_instanceof()
 
   END
   v9.CheckSourceSuccess(lines)
+
+  lines =<< trim END
+    vim9script
+
+    class Base1
+    endclass
+    instanceof(Base1.new())
+  END
+  v9.CheckSourceFailure(lines, 'E119: Not enough arguments for function: instanceof')
+
+  lines =<< trim END
+    vim9script
+
+    class Base1
+    endclass
+    def F()
+      instanceof(Base1.new())
+    enddef
+    F()
+  END
+  v9.CheckSourceFailure(lines, 'E119: Not enough arguments for function: instanceof')
+
+  lines =<< trim END
+    vim9script
+
+    class Base1
+    endclass
+
+    class Base2
+    endclass
+
+    var o = Base2.new()
+    instanceof(o, Base1, Base2, 3)
+  END
+  v9.CheckSourceFailure(lines, 'E693: Class or Typealias required for argument 4', 10)
+
+  lines =<< trim END
+    vim9script
+
+    class Base1
+    endclass
+
+    class Base2
+    endclass
+
+    def F()
+      var o = Base2.new()
+      instanceof(o, Base1, Base2, 3)
+    enddef
+    F()
+  END
+  v9.CheckSourceFailure(lines, 'E1013: Argument 4: type mismatch, expected class<Unknown> but got number')
 enddef
 
 " Test for calling a method in the parent class that is extended partially.
@@ -3968,11 +4101,9 @@ def Test_lockvar_argument()
       public static sval: list<number>
     endclass
 
-    def Lock2(sval: any)
-      lockvar sval
+    def Lock()
+      lockvar C
     enddef
-
-    Lock2(C)
   END
   v9.CheckSourceSuccess(lines)
 
