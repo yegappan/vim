@@ -1535,6 +1535,7 @@ struct type_S {
     short_u	    tt_flags;	    // TTFLAG_ values
     type_T	    *tt_member;	    // for list, dict, func return type
     class_T	    *tt_class;	    // for class and object
+    typealias_T	    *tt_typealias;  // for type alias
     type_T	    **tt_args;	    // func argument types, allocated
 };
 
@@ -1559,6 +1560,14 @@ typedef struct {
 // Type check flags
 #define TYPECHK_NUMBER_OK	0x1	// number is accepted for a float
 #define TYPECHK_TUPLE_OK	0x2	// tuple is accepted for a list
+					//
+/*
+ * For a type alias, return the aliased type.  For other types, return the
+ * type.
+ */
+#define RESOLVE_TYPEALIAS(t) \
+		(((t)->tt_type == VAR_TYPEALIAS && (t)->tt_typealias != NULL) \
+				? (t)->tt_typealias->ta_type : (t))
 
 typedef enum {
     VIM_ACCESS_PRIVATE,	// read/write only inside the class
