@@ -3652,7 +3652,7 @@ def Test_assign_type_to_list_dict()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value')
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "T" cannot be used as a value')
 
   lines =<< trim END
     vim9script
@@ -3684,7 +3684,7 @@ def Test_assign_type_to_list_dict()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value')
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "T" cannot be used as a value')
 
   lines =<< trim END
     vim9script
@@ -3707,7 +3707,7 @@ def Test_assign_type_to_list_dict()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value')
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "T" cannot be used as a value')
 enddef
 
 " Test for modifying a final variable using a compound operator
