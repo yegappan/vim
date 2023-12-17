@@ -2951,7 +2951,12 @@ ex_type(exarg_T *eap)
 	tv.vval.v_typealias = ALLOC_CLEAR_ONE(typealias_T);
 	++tv.vval.v_typealias->ta_refcount;
 	tv.vval.v_typealias->ta_name = vim_strsave(name_start);
-	tv.vval.v_typealias->ta_type = type;
+	if (type->tt_type == VAR_TYPEALIAS)
+	    // When creating a typealias from another typealias, use the
+	    // underlying aliased type
+	    tv.vval.v_typealias->ta_type = type->tt_typealias->ta_type;
+	else
+	    tv.vval.v_typealias->ta_type = type;
     }
     else
     {
