@@ -744,7 +744,7 @@ check_map_filter_arg2(
 {
     type_T *expected_member = NULL;
     type_T *(args[2]);
-    type_T t_func_exp = {VAR_FUNC, 2, 0, 0, NULL, NULL, args};
+    type_T t_func_exp = {VAR_FUNC, 2, 0, 0, NULL, NULL, NULL, args};
 
     if (context->arg_types[0].type_curr->tt_type == VAR_LIST
 	    || context->arg_types[0].type_curr->tt_type == VAR_DICT)
@@ -878,7 +878,7 @@ arg_sort_how(type_T *type, type_T *decl_type UNUSED, argcontext_T *context)
     if (type->tt_type == VAR_FUNC)
     {
 	type_T *(args[2]);
-	type_T t_func_exp = {VAR_FUNC, 2, 0, 0, &t_number, NULL, args};
+	type_T t_func_exp = {VAR_FUNC, 2, 0, 0, &t_number, NULL, NULL, args};
 
 	if (context->arg_types[0].type_curr->tt_type == VAR_LIST)
 	    args[0] = context->arg_types[0].type_curr->tt_member;
@@ -3360,9 +3360,19 @@ internal_func_check_arg_types(
     // functions, check the arguments are not types.
     if (!(func_allows_type(idx)))
     {
-	for (int i = 0; i < argcount; ++i)
-	    if (check_type_is_value(types[i].type_curr) == FAIL)
-		return FAIL;
+        for (int i = 0; i < argcount; ++i)
+	{
+	    type_T  *argtype = types[i].type_curr;
+	    if (argtype != NULL)
+	    {
+		// For an argument with a typealias type, check the underlying
+		// aliased type.
+		argtype = RESOLVE_TYPEALIAS(argtype);
+
+		if (check_type_is_value(argtype) == FAIL)
+		    return FAIL;
+	    }
+	}
     }
 
     const argcheck_T	*argchecks = global_functions[idx].f_argcheck;
@@ -4460,9 +4470,7 @@ f_empty(typval_T *argvars, typval_T *rettv)
 	    break;
 #endif
 	case VAR_TYPEALIAS:
-	    n = argvars[0].vval.v_typealias == NULL
-		|| argvars[0].vval.v_typealias->ta_name == NULL
-		|| *argvars[0].vval.v_typealias->ta_name == NUL;
+	    check_typval_is_value(&argvars[0]);
 	    break;
 
 	case VAR_UNKNOWN:
