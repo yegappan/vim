@@ -1346,6 +1346,10 @@ check_type_maybe(
 {
     int ret = OK;
 
+    // For a typealias type, check the underlying aliased type
+    expected = RESOLVE_TYPEALIAS(expected);
+    actual = RESOLVE_TYPEALIAS(actual);
+
     // When expected is "unknown" we accept any actual type.
     // When expected is "any" we accept any actual type except "void".
     if (expected->tt_type != VAR_UNKNOWN
@@ -2866,7 +2870,9 @@ check_type_is_value(type_T *type)
 	case VAR_TYPEALIAS:
 	    // TODO: Not sure what could be done here to get a name.
 	    //       Maybe an optional argument?
-	    emsg(_(e_using_typealias_as_var_val));
+	    semsg(_(e_using_typealias_as_value_str),
+		    type->tt_typealias == NULL ? (char_u *)"Unknown"
+					    : type->tt_typealias->ta_name);
 	    return FAIL;
 
 	default:
