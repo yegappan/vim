@@ -15,6 +15,7 @@ def Test_typealias()
     assert_equal(['a', 'b'], b)
     assert_equal(['e', 'f'], Foo(['e', 'f']))
     assert_equal('typealias<list<string>>', typename(ListOfStrings))
+    assert_equal('typealias<ListOfStrings>', typename(b))
     assert_equal(v:t_typealias, type(ListOfStrings))
     assert_equal('ListOfStrings', string(ListOfStrings))
     assert_fails('var x = null == ListOfStrings', 'E1403: Type alias "ListOfStrings" cannot be used as a value')
@@ -33,6 +34,7 @@ def Test_typealias()
       assert_equal(['c', 'd'], c)
       assert_equal(['e', 'f'], Foo(['e', 'f']))
       assert_equal('typealias<list<string>>', typename(ListOfStrings))
+      assert_equal('typealias<ListOfStrings>', typename(c))
       assert_equal(v:t_typealias, type(ListOfStrings))
       assert_equal('ListOfStrings', string(ListOfStrings))
       #assert_equal(false, null == ListOfStrings)
@@ -226,7 +228,7 @@ def Test_typealias()
     enddef
     Foo()
   END
-  v9.CheckSourceFailure(lines, 'E1407: Cannot use a Typealias as a variable or value', 1)
+  v9.CheckSourceFailure(lines, 'E1403: Type alias "A" cannot be used as a value', 1)
 
   # Using type alias in an expression (script level)
   lines =<< trim END
@@ -2070,7 +2072,7 @@ def Test_typealias_with_builtin_functions()
     enddef
     Foo()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value', 1)
+  v9.CheckScriptFailure(lines, 'E1013: Argument 1: type mismatch, expected list<any> but got typealias<A>', 1)
 
   # Using a type alias with eval()
   lines =<< trim END
@@ -2304,7 +2306,7 @@ def Test_type_as_func_argument_or_return_value()
     enddef
     Foo()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value', 1)
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "A" cannot be used as a value', 1)
 
   # check typealias as arg, function call in :def
   lines =<< trim END
@@ -2317,7 +2319,7 @@ def Test_type_as_func_argument_or_return_value()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value', 1)
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "A" cannot be used as a value', 1)
 
   # check typealias as function return, function call in :def
   lines =<< trim END
@@ -2331,7 +2333,7 @@ def Test_type_as_func_argument_or_return_value()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value', 1)
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "A" cannot be used as a value', 1)
 
   # check funcref using typealias as arg at script level
   lines =<< trim END
@@ -2362,7 +2364,7 @@ def Test_type_as_func_argument_or_return_value()
     enddef
     G()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value', 1)
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "A" cannot be used as a value', 1)
 
   # check funcref using typealias as return
   lines =<< trim END
@@ -2376,7 +2378,7 @@ def Test_type_as_func_argument_or_return_value()
 
     Fref()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value', 1)
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "A" cannot be used as a value', 1)
 
   # check deferred function using typealias as arg
   lines =<< trim END
@@ -2389,7 +2391,7 @@ def Test_type_as_func_argument_or_return_value()
     enddef
     G()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value', 1)
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "A" cannot be used as a value', 1)
 enddef
 
 " Test for class typealias as function arg and return value
@@ -2550,7 +2552,7 @@ def Test_passing_typealias_to_builtin()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value')
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "T" cannot be used as a value', 1)
 
   # check member call argument to add at script level
   lines =<< trim END
@@ -2569,7 +2571,7 @@ def Test_passing_typealias_to_builtin()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value')
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "T" cannot be used as a value')
 
   # Try "empty()" builtin
   # check argument to empty at script level
@@ -2589,7 +2591,7 @@ def Test_passing_typealias_to_builtin()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value')
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "T" cannot be used as a value')
 
   # check member call argument to empty at script level
   lines =<< trim END
@@ -2608,7 +2610,7 @@ def Test_passing_typealias_to_builtin()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value')
+  v9.CheckScriptFailure(lines, 'E1403: Type alias "T" cannot be used as a value')
 
   # Try "abs()" builtin
   # check argument to abs at script level
@@ -2628,7 +2630,7 @@ def Test_passing_typealias_to_builtin()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value')
+  v9.CheckScriptFailure(lines, 'E1013: Argument 1: type mismatch, expected number but got typealias<T>')
 
   # check member call argument to abs at script level
   lines =<< trim END
@@ -2647,7 +2649,7 @@ def Test_passing_typealias_to_builtin()
     enddef
     F()
   END
-  v9.CheckScriptFailure(lines, 'E1407: Cannot use a Typealias as a variable or value')
+  v9.CheckScriptFailure(lines, 'E1013: Argument 1: type mismatch, expected number but got typealias<T>')
 enddef
 
 " vim: ts=8 sw=2 sts=2 expandtab tw=80 fdm=marker

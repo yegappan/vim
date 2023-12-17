@@ -3054,7 +3054,12 @@ ex_type(exarg_T *eap)
 	    vim_free(tv.vval.v_typealias);
 	    goto done;
 	}
-	tv.vval.v_typealias->ta_type = type;
+	if (type->tt_type == VAR_TYPEALIAS)
+	    // When creating a typealias from another typealias, use the
+	    // underlying aliased type
+	    tv.vval.v_typealias->ta_type = type->tt_typealias->ta_type;
+	else
+	    tv.vval.v_typealias->ta_type = type;
 	tv.vval.v_typealias->ta_depth = parse_type_depth();
     }
     else

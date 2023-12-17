@@ -5073,6 +5073,8 @@ eval8(
 		return FAIL;
 	    }
 	}
+	// When <typealias> cast is used, use the underlying alised type.
+	want_type = RESOLVE_TYPEALIAS(want_type);
 
 	if (**arg != '>')
 	{
