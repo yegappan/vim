@@ -485,6 +485,12 @@ compile_class_object_index(cctx_T *cctx, char_u **arg, type_T *type)
 	    // allowed.
 	    semsg(_(e_abstract_method_str_direct), ufunc->uf_name,
 		    ufunc->uf_defclass->class_name);
+	}
+
+	// A dunder method cannot be directly invoked
+	if (ufunc != NULL && *ufunc->uf_name == '_' && *(ufunc->uf_name + 1) == '_')
+	{
+	    semsg(_(e_dunder_method_cannot_be_used_directly), ufunc->uf_name);
 	    return FAIL;
 	}
 
@@ -498,7 +504,7 @@ compile_class_object_index(cctx_T *cctx, char_u **arg, type_T *type)
 		 || (type->tt_type == VAR_CLASS
 		     && cctx->ctx_ufunc->uf_class != cl)))
 	{
-	    semsg(_(e_cannot_access_protected_method_str), name);
+	    protected_method_access_errmsg(name);
 	    return FAIL;
 	}
 
@@ -544,7 +550,7 @@ compile_class_object_index(cctx_T *cctx, char_u **arg, type_T *type)
 	    // Private object methods are not accessible outside the class
 	    if (*name == '_' && !inside_class(cctx, cl))
 	    {
-		semsg(_(e_cannot_access_protected_method_str), fp->uf_name);
+		protected_method_access_errmsg(fp->uf_name);
 		return FAIL;
 	    }
 	    *arg = name_end;
@@ -586,7 +592,7 @@ compile_class_object_index(cctx_T *cctx, char_u **arg, type_T *type)
 	    // Private class methods are not accessible outside the class
 	    if (*name == '_' && !inside_class(cctx, cl))
 	    {
-		semsg(_(e_cannot_access_protected_method_str), fp->uf_name);
+		protected_method_access_errmsg(fp->uf_name);
 		return FAIL;
 	    }
 	    *arg = name_end;
