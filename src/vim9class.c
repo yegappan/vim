@@ -3001,8 +3001,8 @@ call_oc_method(
 
     if (ocm == NULL && *fp->uf_name == '_')
     {
-	// Cannot access a protected method outside of a class
-	semsg(_(e_cannot_access_protected_method_str), fp->uf_name);
+	// Cannot access a private method outside of a class
+	protected_method_access_errmsg(fp->uf_name);
 	return FAIL;
     }
 
@@ -3147,7 +3147,7 @@ class_object_index(
 	    // Protected methods are not accessible outside the class
 	    if (*name == '_')
 	    {
-		semsg(_(e_cannot_access_protected_method_str), fp->uf_name);
+		protected_method_access_errmsg(fp->uf_name);
 		return FAIL;
 	    }
 
@@ -3881,6 +3881,15 @@ object_free_items(int copyID)
     }
 }
 
+    void
+protected_method_access_errmsg(char_u *method_name)
+{
+    if (*(method_name + 1) == '_')
+	semsg(_(e_cannot_access_dunder_method_str), method_name);
+    else
+	semsg(_(e_cannot_access_protected_method_str), method_name);
+}
+
 /*
  * Output message which takes a variable name and the class that defines it.
  * "cl" is that class where the name was found. Search "cl"'s hierarchy to
@@ -3909,7 +3918,7 @@ method_not_found_msg(class_T *cl, vartype_T v_type, char_u *name, size_t len)
     {
 	// If this is a class method, then give a different error
 	if (*name == '_')
-	    semsg(_(e_cannot_access_protected_method_str), method_name);
+	    protected_method_access_errmsg(method_name);
 	else
 	    semsg(_(e_class_method_str_accessible_only_using_class_str),
 		    method_name, cl->class_name);
@@ -3919,7 +3928,7 @@ method_not_found_msg(class_T *cl, vartype_T v_type, char_u *name, size_t len)
     {
 	// If this is an object method, then give a different error
 	if (*name == '_')
-	    semsg(_(e_cannot_access_protected_method_str), method_name);
+	    protected_method_access_errmsg(method_name);
 	else
 	    semsg(_(e_object_method_str_accessible_only_using_object_str),
 		    method_name, cl->class_name);
