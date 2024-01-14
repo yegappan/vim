@@ -507,7 +507,7 @@ compile_class_object_index(cctx_T *cctx, char_u **arg, type_T *type)
 		 || (type->tt_type == VAR_CLASS
 		     && cctx->ctx_ufunc->uf_class != cl)))
 	{
-	    protected_method_access_errmsg(name);
+	    semsg(_(e_cannot_access_protected_method_str), name);
 	    return FAIL;
 	}
 
@@ -553,7 +553,7 @@ compile_class_object_index(cctx_T *cctx, char_u **arg, type_T *type)
 	    // Private object methods are not accessible outside the class
 	    if (*name == '_' && !inside_class(cctx, cl))
 	    {
-		protected_method_access_errmsg(fp->uf_name);
+		semsg(_(e_cannot_access_protected_method_str), fp->uf_name);
 		return FAIL;
 	    }
 	    *arg = name_end;
@@ -595,7 +595,7 @@ compile_class_object_index(cctx_T *cctx, char_u **arg, type_T *type)
 	    // Private class methods are not accessible outside the class
 	    if (*name == '_' && !inside_class(cctx, cl))
 	    {
-		protected_method_access_errmsg(fp->uf_name);
+		semsg(_(e_cannot_access_protected_method_str), fp->uf_name);
 		return FAIL;
 	    }
 	    *arg = name_end;
