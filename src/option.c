@@ -5755,11 +5755,17 @@ showoptions(
 }
 
     void
-options_list_get(list_T *l, int what)
+options_list_get(vvoptdict_T optdict_type, int what, list_T *l)
 {
     struct vimoption	*p;
     listitem_T		*li;
     char_u		*varp;
+    int			scope = 0;
+
+    if (optdict_type == VV_OPTDICT_GLOBAL)
+	scope = OPT_GLOBAL;
+    else if (optdict_type == VV_OPTDICT_LOCAL)
+	scope = OPT_LOCAL;
 
     for (p = &options[0]; p->fullname != NULL; p++)
     {
@@ -5783,7 +5789,7 @@ options_list_get(list_T *l, int what)
 	    // values()
 	    if (p->flags & (P_NUM | P_STRING))
 	    {
-		option_value2string(p, OPT_GLOBAL);
+		option_value2string(p, scope);
 		li->li_tv.v_type = VAR_STRING;
 		li->li_tv.v_lock = 0;
 		li->li_tv.vval.v_string = vim_strsave((char_u *)NameBuff);
@@ -5791,10 +5797,14 @@ options_list_get(list_T *l, int what)
 	    else
 	    {
 		// boolean option
-		varp = get_varp_scope(p, OPT_GLOBAL);
+		varp = get_varp_scope(p, scope);
 		li->li_tv.v_type = VAR_BOOL;
 		li->li_tv.v_lock = 0;
 		li->li_tv.vval.v_number = *(int *)varp;
+		if (li->li_tv.vval.v_number == -1)
+		    // For boolean options which are set to -1 (e.g.
+		    // 'autoread'), use false.
+		    li->li_tv.vval.v_number = 0;
 	    }
 	}
 	else
@@ -5825,7 +5835,7 @@ options_list_get(list_T *l, int what)
 	    list_append(l2, li2);
 	    if (p->flags & (P_NUM | P_STRING))
 	    {
-		option_value2string(p, OPT_GLOBAL);
+		option_value2string(p, scope);
 		li2->li_tv.v_type = VAR_STRING;
 		li2->li_tv.v_lock = 0;
 		li2->li_tv.vval.v_string = vim_strsave((char_u *)NameBuff);
@@ -5833,10 +5843,14 @@ options_list_get(list_T *l, int what)
 	    else
 	    {
 		// boolean option
-		varp = get_varp_scope(p, OPT_GLOBAL);
+		varp = get_varp_scope(p, scope);
 		li2->li_tv.v_type = VAR_BOOL;
 		li2->li_tv.v_lock = 0;
 		li2->li_tv.vval.v_number = *(int *)varp;
+		if (li2->li_tv.vval.v_number == -1)
+		    // For boolean options which are set to -1 (e.g.
+		    // 'autoread'), use false.
+		    li2->li_tv.vval.v_number = 0;
 	    }
 	}
     }
