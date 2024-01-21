@@ -277,6 +277,11 @@ evalvars_init(void)
     if (d != NULL)
     {
 	dict_T	*opt_d = dict_alloc();
+	if (opt_d != NULL)
+	{
+	    dict_add_dict(opt_d, "local", dict_alloc());
+	    dict_add_dict(opt_d, "global", dict_alloc());
+	}
 	dict_add_dict(d, "opt", opt_d);
     }
     set_vim_var_dict(VV_VIM, d, FALSE);
@@ -1870,24 +1875,42 @@ ex_let_register(
     static char_u *
 vim_var_opt_set_tv(
 	char_u		*lval_name,
+	vvoptdict_T	optdict_type,
 	typval_T	*tv,
 	int		flags,
 	char_u		*endchars,
 	char_u		*op)
 {
     char_u	*p;
+    int		i = 0;
     int		len;
     char_u	*arg_end = NULL;
 
-    len = STRLEN(lval_name) + 2 - 10;
+    len = STRLEN(lval_name) + 4;
     p = alloc(len);
     if (p == NULL)
 	return NULL;
 
-    p[0] = '&';
-    p[1] = NUL;
     // skip 'v:vim.opt.'
-    vim_strcat(p, lval_name + 10, len);
+    lval_name += 10;
+
+    p[i++] = '&';
+    if (optdict_type != VV_OPTDICT)
+    {
+	if (optdict_type == VV_OPTDICT_GLOBAL)
+	{
+	    p[i++] = 'g';
+	    lval_name += 7;	    // skip "global."
+	}
+	else if (optdict_type == VV_OPTDICT_LOCAL)
+	{
+	    p[i++] = 'l';
+	    lval_name += 6;	    // skip "local."
+	}
+	p[i++] = ':';
+    }
+    p[i] = NUL;
+    vim_strcat(p, lval_name, len);
     arg_end = ex_let_option(p, tv, flags, endchars, op);
     vim_free(p);
 
@@ -1963,10 +1986,12 @@ ex_let_one(
 	    }
 	    else
 	    {
-		if (lv.ll_dict != NULL && lv.ll_dict == get_vim_var_opt_dict())
+		vvoptdict_T optdict_type =
+					get_optdict_type(lv.ll_dict, NULL, -1);
+		if (optdict_type != VV_OPTDICT_NONE)
 		{
-		    arg_end = vim_var_opt_set_tv(lv.ll_name, tv, flags,
-								endchars, op);
+		    arg_end = vim_var_opt_set_tv(lv.ll_name, optdict_type,
+						tv, flags, endchars, op);
 		    if (arg_end == NULL)
 		    {
 			clear_lval(&lv);
@@ -2811,7 +2836,7 @@ get_vim_var_dict(int idx)
 /*
  * Return the vim.opt dict.
  */
-    dict_T *
+    static dict_T *
 get_vim_var_opt_dict(void)
 {
     static dict_T	*opt_dict = NULL;
@@ -2832,6 +2857,80 @@ get_vim_var_opt_dict(void)
     }
 
     return opt_dict;
+}
+
+/*
+ * Return the vim.opt.global dict.
+ */
+    static dict_T *
+get_vim_var_opt_global_dict(void)
+{
+    static dict_T   *opt_global_dict = NULL;
+    dict_T	    *opt_dict = get_vim_var_opt_dict();
+    dictitem_T	    *di;
+
+    if (opt_dict != NULL)
+    {
+	di = dict_find(opt_dict, (char_u *)"global", -1);
+	if (di == NULL)
+	    return NULL;
+
+	opt_global_dict = di->di_tv.vval.v_dict;
+    }
+
+    return opt_global_dict;
+}
+
+/*
+ * Return the vim.opt.local dict.
+ */
+    static dict_T *
+get_vim_var_opt_local_dict(void)
+{
+    static dict_T   *opt_local_dict = NULL;
+    dict_T	    *opt_dict = get_vim_var_opt_dict();
+    dictitem_T	    *di;
+
+    if (opt_dict != NULL)
+    {
+	di = dict_find(opt_dict, (char_u *)"local", -1);
+	if (di == NULL)
+	    return NULL;
+
+	opt_local_dict = di->di_tv.vval.v_dict;
+    }
+
+    return opt_local_dict;
+}
+
+/*
+ * If "d" is a "v:vim.opt" or "v:vim.opt.global" or "v:vim.opt.local" Dict,
+ * then returns VV_OPTDICT or VV_OPTDICT_GLOBAL or VV_OPTDICT_LOCAL.
+ * Otherwise returns VV_OPTDICT_NONE.
+ */
+    vvoptdict_T
+get_optdict_type(dict_T *d, char_u *key, int keylen)
+{
+    if (d == NULL)
+	return VV_OPTDICT_NONE;
+
+    if (d == get_vim_var_opt_dict())
+    {
+	if (key != NULL)
+	{
+	    if (keylen == 5 && STRNCMP(key, "local", keylen) == 0)
+		return VV_OPTDICT_NONE;
+	    else if (keylen == 6 && STRNCMP(key, "global", keylen) == 0)
+		return VV_OPTDICT_NONE;
+	}
+	return VV_OPTDICT;
+    }
+    if (d == get_vim_var_opt_global_dict())
+	return VV_OPTDICT_GLOBAL;
+    if (d == get_vim_var_opt_local_dict())
+	return VV_OPTDICT_LOCAL;
+
+    return VV_OPTDICT_NONE;
 }
 
 /*
@@ -2996,23 +3095,49 @@ set_reg_var(int c)
 }
 
     int
-vim_var_opt_get_tv(char_u *optname, int optlen, typval_T *rettv)
+vim_var_opt_get_tv(
+    char_u		*optname,
+    int			optlen,
+    typval_T		*rettv)
 {
+    vvoptdict_T	optdict_type = VV_OPTDICT;
     char_u	*p;
     char_u	*save_p;
     int		len;
     int		status;
+    int		i = 0;
+
+    if (*optname == 'l' && STRNCMP(optname, "local.", 6) == 0)
+	optdict_type = VV_OPTDICT_LOCAL;
+    else if (*optname == 'g' && STRNCMP(optname, "global.", 7) == 0)
+	optdict_type = VV_OPTDICT_GLOBAL;
 
     len = optlen;
     if (len <= 0)
 	len = STRLEN(optname);
-    len += 2;
+    len += 4;
     p = alloc(len);
     if (p == NULL)
 	return FAIL;
 
-    p[0] = '&';
-    p[1] = NUL;
+    p[i++] = '&';
+    if (optdict_type != VV_OPTDICT)
+    {
+	if (optdict_type == VV_OPTDICT_GLOBAL)
+	{
+	    p[i++] = 'g';
+	    // skip "global."
+	    optname += 7;
+	}
+	else if (optdict_type == VV_OPTDICT_LOCAL)
+	{
+	    p[i++] = 'l';
+	    // skip "local."
+	    optname += 6;
+	}
+	p[i++] = ':';
+    }
+    p[i] = NUL;
     vim_strcat(p, optname, len);
     save_p = p;
     status = eval_option(&p, rettv, TRUE);
