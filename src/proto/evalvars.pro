@@ -46,7 +46,7 @@ varnumber_T get_vim_var_nr(int idx);
 char_u *get_vim_var_str(int idx);
 list_T *get_vim_var_list(int idx);
 dict_T *get_vim_var_dict(int idx);
-dict_T *get_vim_var_opt_dict(void);
+vvoptdict_T get_optdict_type(dict_T *d, char_u *key, int keylen);
 void set_vim_var_char(int c);
 void set_vcount(long count, long count1, int set_prevcount);
 void save_vimvars(vimvars_save_T *vvsave);
