@@ -2375,6 +2375,15 @@ typedef enum {
     FCERR_FAILED,	// error while executing the function
 } funcerror_T;
 
+// v:vim.opt dict type
+typedef enum
+{
+    VV_OPTDICT_NONE,
+    VV_OPTDICT,
+    VV_OPTDICT_GLOBAL,
+    VV_OPTDICT_LOCAL
+} vvoptdict_T;
+
 /*
  * Array indexes used for cp_text[].
  */

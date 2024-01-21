@@ -107,7 +107,7 @@ char_u *get_term_code(char_u *tname);
 char_u *get_highlight_default(void);
 char_u *get_encoding_default(void);
 int is_option_allocated(char *name);
-void options_list_get(list_T *l, int what);
+void options_list_get(vvoptdict_T optdict_type, int what, list_T *l);
 int makeset(FILE *fd, int opt_flags, int local_only);
 int makefoldset(FILE *fd);
 void clear_termoptions(void);

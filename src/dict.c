@@ -1540,10 +1540,11 @@ dict2list(typval_T *argvars, typval_T *rettv, dict2list_T what)
 	// NULL dict behaves like an empty dict
 	return;
 
-    if (d == get_vim_var_opt_dict())
+    vvoptdict_T optdict_type = get_optdict_type(d, NULL, -1);
+    if (optdict_type != VV_OPTDICT_NONE)
     {
-	// v:vim.opt dict
-	options_list_get(rettv->vval.v_list, what);
+	// v:vim.opt or v:vim.opt.global or v:vim.opt.local dict
+	options_list_get(optdict_type, what, rettv->vval.v_list);
 	return;
     }
 
@@ -1659,9 +1660,11 @@ f_has_key(typval_T *argvars, typval_T *rettv)
     if (argvars[0].vval.v_dict == NULL)
 	return;
 
-    if (argvars[0].vval.v_dict == get_vim_var_opt_dict())
+    vvoptdict_T optdict_type =
+			get_optdict_type(argvars[0].vval.v_dict, NULL, -1);
+    if (optdict_type != VV_OPTDICT_NONE)
 	rettv->vval.v_number = vim_var_opt_get_tv(tv_get_string(&argvars[1]),
-								-1, NULL);
+							-1, NULL);
     else
 	rettv->vval.v_number = dict_has_key(argvars[0].vval.v_dict,
 				(char *)tv_get_string(&argvars[1]));
