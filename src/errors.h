@@ -3624,8 +3624,10 @@ EXTERN char e_uninitialized_object_var_reference[]
 	INIT(= N_("E1430: Uninitialized object variable '%s' referenced"));
 EXTERN char e_abstract_method_str_direct[]
 	INIT(= N_("E1431: Abstract method \"%s\" in class \"%s\" cannot be accessed directly"));
+EXTERN char e_builtin_interface_creation_failed[]
+	INIT(= N_("E1432: Failed to create builtin interface \"%s\""));
 #endif
-// E1432 - E1499 unused (reserved for Vim9 class support)
+// E1433 - E1499 unused (reserved for Vim9 class support)
 EXTERN char e_cannot_mix_positional_and_non_positional_str[]
 	INIT(= N_("E1500: Cannot mix positional and non-positional arguments: %s"));
 EXTERN char e_fmt_arg_nr_unused_str[]
