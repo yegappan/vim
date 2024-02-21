@@ -923,7 +923,8 @@ The "vimObject" interface contains the following methods:
     def String(): string
 <
 If a class implements the "vimObject" interface, then the builtin |string()|
-function will invoke the String() object method.
+function will invoke the String() object method to get a textual
+representation of the object.  Also used by the |:echo| command.
 
 						*vimContainer*
 The "vimContainer" interface contains the following methods:
