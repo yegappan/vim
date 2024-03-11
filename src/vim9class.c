@@ -2270,7 +2270,142 @@ oc_member_type_by_idx(
     void
 ex_enum(exarg_T *eap UNUSED)
 {
-    // TODO
+    long       start_lnum = SOURCING_LNUM;
+    char_u     *arg = eap->arg;
+
+    if (!current_script_is_vim9()
+	    || (cmdmod.cmod_flags & CMOD_LEGACY)
+	    || !getline_equal(eap->ea_getline, eap->cookie, getsourceline))
+    {
+	emsg(_(e_enum_can_only_be_defined_in_vim9_script));
+	return;
+    }
+
+    if (!ASCII_ISUPPER(*arg))
+    {
+	semsg(_(e_enum_name_must_start_with_uppercase_letter_str), arg);
+	return;
+    }
+    char_u *name_end = find_name_end(arg, NULL, NULL, FNE_CHECK_START);
+    if (*name_end != NUL)
+    {
+	semsg(_(e_trailing_characters_str), arg);
+	return;
+    }
+    char_u *name_start = arg;
+
+    enum_T *en = NULL;
+
+    en = ALLOC_CLEAR_ONE(enum_T);
+    if (en == NULL)
+	goto cleanup;
+
+    en->enum_refcount = 1;
+    en->enum_name = vim_strnsave(name_start, name_end - name_start);
+    if (en->enum_name == NULL)
+	goto cleanup;
+    ga_init2(&en->enum_item_list, sizeof(enum_item_T), 10);
+
+    // Add the enum to the script-local variables.
+    typval_T tv;
+    tv.v_type = VAR_ENUM;
+    tv.vval.v_enum = en;
+    SOURCING_LNUM = start_lnum;
+    int rc = set_var_const(en->enum_name, current_sctx.sc_sid,
+						NULL, &tv, FALSE, 0, 0);
+    if (rc == FAIL)
+	goto cleanup;
+
+    /*
+     * Go over the body of the enum until "endenum" is found
+     */
+    char_u	*theline = NULL;
+    garray_T	*gap = &en->enum_item_list;
+    int		success = FALSE;
+    int		en_value = -1;
+    for (;;)
+    {
+	vim_free(theline);
+	theline = eap->ea_getline(':', eap->cookie, 0, GETLINE_CONCAT_ALL);
+	if (theline == NULL)
+	    break;
+	char_u *line = skipwhite(theline);
+
+	// Skip empty and comment lines.
+	if (*line == NUL)
+	    continue;
+	if (*line == '#')
+	{
+	    if (vim9_bad_comment(line))
+		break;
+	    continue;
+	}
+
+	char_u *p = line;
+	if (checkforcmd(&p, "endenum", 4))
+	{
+	    if (STRNCMP(line, "endenum", 7) != 0)
+		semsg(_(e_command_cannot_be_shortened_str), line);
+	    else if (*p == '|' || !ends_excmd2(line, p))
+		semsg(_(e_trailing_characters_str), p);
+	    else
+		success = TRUE;
+	    break;
+	}
+
+	if (!eval_isnamec1(*p))
+	{
+	    semsg(_(e_invalid_enum_value_declaration_str), p);
+	    break;
+	}
+
+	char_u *eni_name_start = p;
+	char_u *eni_name_end = to_name_end(p, FALSE);
+	p = eni_name_end + 1;
+
+	en_value += 1;
+	if (*p != NUL)
+	{
+	    p = skipwhite(p);
+	    if (*p != '=')
+	    {
+		emsg(_(e_initialization_required_after_name));
+		break;
+	    }
+	    if (!VIM_ISWHITE(p[-1]) || !VIM_ISWHITE(p[1]))
+	    {
+		semsg(_(e_white_space_required_before_and_after_str_at_str),
+			"=", line);
+		break;
+	    }
+	    p++;
+	    p = skipwhite(p);
+
+	    typval_T *etv = eval_expr(p, eap);
+	    if (etv == NULL)
+		break;
+	    if (etv->v_type != VAR_NUMBER)
+	    {
+		emsg(_(e_number_required_after_equal));
+		break;
+	    }
+	    en_value = etv->vval.v_number;
+	}
+
+	if (ga_grow(gap, 1) == FAIL)
+	    break;
+	enum_item_T *en_item = ((enum_item_T *)gap->ga_data) + gap->ga_len;
+	en_item->eni_name = vim_strnsave(eni_name_start,
+				    eni_name_end - eni_name_start);
+	en_item->eni_value = en_value;
+	++gap->ga_len;
+    }
+    vim_free(theline);
+
+    return;
+
+cleanup:
+    // TODO: Free the enum
 }
 
 /*

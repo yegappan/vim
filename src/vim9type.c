@@ -1447,6 +1447,7 @@ equal_type(type_T *type1, type_T *type2, int flags)
 	case VAR_CLASS:
 	case VAR_OBJECT:
 	case VAR_TYPEALIAS:
+	case VAR_ENUM:
 	    break;  // not composite is always OK
 	case VAR_LIST:
 	case VAR_DICT:
@@ -1697,6 +1698,7 @@ vartype_name(vartype_T type)
 	case VAR_CLASS: return "class";
 	case VAR_OBJECT: return "object";
 	case VAR_TYPEALIAS: return "typealias";
+	case VAR_ENUM: return "enum";
 
 	case VAR_FUNC:
 	case VAR_PARTIAL: return "func";

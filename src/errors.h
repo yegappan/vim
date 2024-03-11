@@ -3585,8 +3585,16 @@ EXTERN char e_builtin_object_method_str_not_supported[]
 	INIT(= N_("E1412: Builtin object method \"%s\" not supported"));
 EXTERN char e_builtin_class_method_not_supported[]
 	INIT(= N_("E1413: Builtin class method not supported"));
+EXTERN char e_enum_can_only_be_defined_in_vim9_script[]
+       INIT(= N_("E1414: Enum can only be defined in Vim9 script"));
+EXTERN char e_enum_name_must_start_with_uppercase_letter_str[]
+	INIT(= N_("E1415: Enum name must start with an uppercase letter: %s"));
+EXTERN char e_invalid_enum_value_declaration_str[]
+	INIT(= N_("E1416: Invalid enum value declaration: %s"));
+EXTERN char e_initialization_required_after_name[]
+	INIT(= N_("E1417: Initialization required after name"));
 #endif
-// E1415 - E1499 unused (reserved for Vim9 class support)
+// E1418 - E1499 unused (reserved for Vim9 class support)
 EXTERN char e_cannot_mix_positional_and_non_positional_str[]
 	INIT(= N_("E1500: Cannot mix positional and non-positional arguments: %s"));
 EXTERN char e_fmt_arg_nr_unused_str[]

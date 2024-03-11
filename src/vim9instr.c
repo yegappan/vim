@@ -241,6 +241,7 @@ may_generate_2STRING(int offset, int tolerant, cctx_T *cctx)
 	case VAR_CLASS:
 	case VAR_OBJECT:
 	case VAR_TYPEALIAS:
+	case VAR_ENUM:
 			 to_string_error(type->tt_type);
 			 return FAIL;
     }

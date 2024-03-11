@@ -430,6 +430,8 @@ json_encode_item(garray_T *gap, typval_T *val, int copyID, int options)
 		ga_concat(gap, numbuf);
 	    }
 	    break;
+	case VAR_ENUM:
+	    // TODO: Encode enum value
 	case VAR_UNKNOWN:
 	case VAR_ANY:
 	case VAR_VOID:

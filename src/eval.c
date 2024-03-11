@@ -2026,6 +2026,7 @@ tv_op(typval_T *tv1, typval_T *tv2, char_u *op)
 	    case VAR_CHANNEL:
 	    case VAR_INSTR:
 	    case VAR_OBJECT:
+	    case VAR_ENUM:
 		break;
 	    case VAR_CLASS:
 	    case VAR_TYPEALIAS:
@@ -5029,6 +5030,7 @@ check_can_index(typval_T *rettv, int evaluate, int verbose)
 	case VAR_CHANNEL:
 	case VAR_INSTR:
 	case VAR_OBJECT:
+	case VAR_ENUM:
 	    if (verbose)
 		emsg(_(e_cannot_index_special_variable));
 	    return FAIL;
@@ -5140,6 +5142,7 @@ eval_index_inner(
 	case VAR_CLASS:
 	case VAR_OBJECT:
 	case VAR_TYPEALIAS:
+	case VAR_ENUM:
 	    break; // not evaluating, skipping over subscript
 
 	case VAR_NUMBER:
@@ -6079,6 +6082,7 @@ set_ref_in_item(
 	case VAR_BLOB:
 	case VAR_TYPEALIAS:
 	case VAR_INSTR:
+	case VAR_ENUM:
 	    // Types that do not contain any other item
 	    break;
     }
@@ -6337,6 +6341,13 @@ echo_string_core(
 
 	case VAR_TYPEALIAS:
 	    *tofree = vim_strsave(tv->vval.v_typealias->ta_name);
+	    r = *tofree;
+	    if (r == NULL)
+		r = (char_u *)"";
+	    break;
+
+	case VAR_ENUM:
+	    *tofree = vim_strsave(tv->vval.v_enum->enum_name);
 	    r = *tofree;
 	    if (r == NULL)
 		r = (char_u *)"";
@@ -7214,6 +7225,7 @@ item_copy(
 	case VAR_CLASS:
 	case VAR_OBJECT:
 	case VAR_TYPEALIAS:
+	case VAR_ENUM:
 	    copy_tv(from, to);
 	    break;
 	case VAR_LIST:

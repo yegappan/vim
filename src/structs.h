@@ -1473,6 +1473,8 @@ typedef struct instr_S instr_T;
 typedef struct class_S class_T;
 typedef struct object_S object_T;
 typedef struct typealias_S typealias_T;
+typedef struct enum_S enum_T;
+typedef struct enum_item_S enum_item_T;
 
 typedef enum
 {
@@ -1494,7 +1496,8 @@ typedef enum
     VAR_INSTR,		// "v_instr" is used
     VAR_CLASS,		// "v_class" is used (also used for interface)
     VAR_OBJECT,		// "v_object" is used
-    VAR_TYPEALIAS	// "v_typealias" is used
+    VAR_TYPEALIAS,	// "v_typealias" is used
+    VAR_ENUM,		// "v_enum" is used
 } vartype_T;
 
 // A type specification.
@@ -1634,6 +1637,26 @@ struct typealias_S
 };
 
 /*
+ * Individual enum value
+ */
+struct enum_item_S
+{
+    char_u	*eni_name;
+    int		eni_value;
+};
+
+/*
+ * Enum
+ */
+struct enum_S
+{
+    char_u	*enum_name;
+    garray_T	enum_item_list;		// used for enum values
+    int		enum_refcount;
+    int		enum_copyID;		// used by garbage collection
+};
+
+/*
  * Structure to hold an internal variable without a name.
  */
 struct typval_S
@@ -1657,6 +1680,7 @@ struct typval_S
 	class_T		*v_class;	// class value (can be NULL)
 	object_T	*v_object;	// object value (can be NULL)
 	typealias_T	*v_typealias;	// user-defined type name
+	enum_T		*v_enum;	// enum values (can be NULL)
     }		vval;
 };
 

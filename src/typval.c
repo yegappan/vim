@@ -96,6 +96,9 @@ free_tv(typval_T *varp)
 	    typealias_unref(varp->vval.v_typealias);
 	    break;
 
+	case VAR_ENUM:
+	    break;
+
 	case VAR_NUMBER:
 	case VAR_FLOAT:
 	case VAR_ANY:
@@ -176,6 +179,9 @@ clear_tv(typval_T *varp)
 	case VAR_TYPEALIAS:
 	    typealias_unref(varp->vval.v_typealias);
 	    varp->vval.v_typealias = NULL;
+	    break;
+	case VAR_ENUM:
+	    varp->vval.v_enum = NULL;
 	    break;
 	case VAR_UNKNOWN:
 	case VAR_ANY:
@@ -267,6 +273,9 @@ tv_get_bool_or_number_chk(
 	    break;
 	case VAR_OBJECT:
 	    emsg(_(e_using_object_as_number));
+	    break;
+	case VAR_ENUM:
+	    // TODO: Display an error message
 	    break;
 	case VAR_VOID:
 	    emsg(_(e_cannot_use_void_value));
@@ -389,6 +398,7 @@ tv_get_float_chk(typval_T *varp, int *error)
 	case VAR_VOID:
 	    emsg(_(e_cannot_use_void_value));
 	    break;
+	case VAR_ENUM:
 	case VAR_UNKNOWN:
 	case VAR_ANY:
 	case VAR_INSTR:
@@ -1164,6 +1174,7 @@ tv_get_string_buf_chk_strict(typval_T *varp, char_u *buf, int strict)
 	case VAR_VOID:
 	    emsg(_(e_cannot_use_void_value));
 	    break;
+	case VAR_ENUM:
 	case VAR_UNKNOWN:
 	case VAR_ANY:
 	case VAR_INSTR:
@@ -1337,6 +1348,7 @@ copy_tv(typval_T *from, typval_T *to)
 	case VAR_VOID:
 	    emsg(_(e_cannot_use_void_value));
 	    break;
+	case VAR_ENUM:
 	case VAR_UNKNOWN:
 	case VAR_ANY:
 	    internal_error_no_abort("copy_tv(UNKNOWN)");
@@ -2113,6 +2125,9 @@ tv_equal(
 
 	case VAR_TYPEALIAS:
 	    return tv1->vval.v_typealias == tv2->vval.v_typealias;
+
+	case VAR_ENUM:
+	    return tv1->vval.v_enum == tv2->vval.v_enum;
 
 	case VAR_UNKNOWN:
 	case VAR_ANY:

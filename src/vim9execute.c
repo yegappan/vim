@@ -7548,6 +7548,7 @@ tv2bool(typval_T *tv)
 	case VAR_CLASS:
 	case VAR_OBJECT:
 	case VAR_TYPEALIAS:
+	case VAR_ENUM:
 	    break;
     }
     return FALSE;

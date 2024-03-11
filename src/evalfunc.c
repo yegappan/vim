@@ -4008,6 +4008,10 @@ f_empty(typval_T *argvars, typval_T *rettv)
 		|| *argvars[0].vval.v_typealias->ta_name == NUL;
 	    break;
 
+	case VAR_ENUM:
+	    n = 0;
+	    break;
+
 	case VAR_UNKNOWN:
 	case VAR_ANY:
 	case VAR_VOID:
@@ -7886,6 +7890,7 @@ f_len(typval_T *argvars, typval_T *rettv)
 	case VAR_INSTR:
 	case VAR_CLASS:
 	case VAR_TYPEALIAS:
+	case VAR_ENUM:
 	    emsg(_(e_invalid_type_for_len));
 	    break;
     }
@@ -11492,6 +11497,7 @@ f_type(typval_T *argvars, typval_T *rettv)
 	case VAR_CLASS:   n = VAR_TYPE_CLASS; break;
 	case VAR_OBJECT:  n = VAR_TYPE_OBJECT; break;
 	case VAR_TYPEALIAS: n = VAR_TYPE_TYPEALIAS; break;
+	case VAR_ENUM: n = VAR_TYPE_ENUM; break;
 	case VAR_UNKNOWN:
 	case VAR_ANY:
 	case VAR_VOID:
