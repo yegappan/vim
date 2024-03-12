@@ -5533,6 +5533,8 @@ garbage_collect(int testing)
 
     abort = abort || set_ref_in_classes(copyID);
 
+    abort = abort || set_ref_in_enums(copyID);
+
     if (!abort)
     {
 	/*
@@ -5583,6 +5585,9 @@ free_unref_items(int copyID)
 
     // Go through the list of classes and free items without this copyID.
     did_free |= class_free_nonref(copyID);
+
+    // Go through the list of enums and free items without this copyID.
+    did_free |= enum_free_nonref(copyID);
 
 #ifdef FEAT_JOB_CHANNEL
     // Go through the list of jobs and free items without the copyID. This
@@ -6011,6 +6016,27 @@ set_ref_in_item_object(
 }
 
 /*
+ * Mark the enum "en" with "copyID".
+ * Also see set_ref_in_item().
+ */
+    static int
+set_ref_in_item_enum(
+    enum_T		*en,
+    int			copyID,
+    ht_stack_T		**ht_stack UNUSED,
+    list_stack_T	**list_stack UNUSED)
+{
+    int abort = FALSE;
+
+    if (en == NULL || en->enum_copyID == copyID)
+	return FALSE;
+
+    en->enum_copyID = copyID;
+
+    return abort;
+}
+
+/*
  * Mark all lists, dicts and other container types referenced through typval
  * "tv" with "copyID".
  * "list_stack" is used to add lists to be marked.  Can be NULL.
@@ -6071,6 +6097,10 @@ set_ref_in_item(
 	    return set_ref_in_item_object(tv->vval.v_object, copyID,
 							 ht_stack, list_stack);
 
+	case VAR_ENUM:
+	    return set_ref_in_item_enum(tv->vval.v_enum, copyID,
+							 ht_stack, list_stack);
+
 	case VAR_UNKNOWN:
 	case VAR_ANY:
 	case VAR_VOID:
@@ -6082,7 +6112,6 @@ set_ref_in_item(
 	case VAR_BLOB:
 	case VAR_TYPEALIAS:
 	case VAR_INSTR:
-	case VAR_ENUM:
 	    // Types that do not contain any other item
 	    break;
     }
@@ -6347,11 +6376,14 @@ echo_string_core(
 	    break;
 
 	case VAR_ENUM:
-	    *tofree = vim_strsave(tv->vval.v_enum->enum_name);
-	    r = *tofree;
-	    if (r == NULL)
-		r = (char_u *)"";
-	    break;
+	    {
+		enum_T *en = tv->vval.v_enum;
+		size_t len = 6 + (en == NULL ? 9 : STRLEN(en->enum_name)) + 1;
+		r = *tofree = alloc(len);
+		vim_snprintf((char *)r, len, "enum %s",
+			en == NULL ? "[unknown]" : (char *)en->enum_name);
+		break;
+	    }
     }
 
     if (--recurse == 0)
@@ -7161,6 +7193,15 @@ handle_subscript(
 	    // object member: someObject.varname
 	    // object method: someObject.SomeMethod()
 	    if (class_object_index(arg, rettv, evalarg, verbose) == FAIL)
+	    {
+		clear_tv(rettv);
+		ret = FAIL;
+	    }
+	}
+	else if (**arg == '.' && (rettv->v_type == VAR_ENUM))
+	{
+	    // enum item: SomeEnum.itemname
+	    if (enum_index(arg, rettv, evalarg, verbose) == FAIL)
 	    {
 		clear_tv(rettv);
 		ret = FAIL;

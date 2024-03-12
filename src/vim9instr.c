@@ -2462,6 +2462,16 @@ generate_store_lhs(cctx_T *cctx, lhs_T *lhs, int instr_count, int is_decl)
     garray_T	*instr = &cctx->ctx_instr;
     isn_T		*isn = ((isn_T *)instr->ga_data) + instr->ga_len - 1;
 
+    if (lhs->lhs_type->tt_type == VAR_ENUM)
+    {
+	// Check that the value is one of the supported enum values
+	enum_T *en = lhs->lhs_type->tt_enum;
+	varnumber_T val = isn->isn_arg.number;
+
+	if (check_enum_value(en, val) == FAIL)
+	    return FAIL;
+    }
+
     // Optimization: turn "var = 123" from ISN_PUSHNR + ISN_STORE into
     // ISN_STORENR.
     // And "var = 0" does not need any instruction.

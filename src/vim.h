@@ -2162,7 +2162,8 @@ typedef int sock_T;
 #define VV_MAXCOL	105
 #define VV_PYTHON3_VERSION 106
 #define VV_TYPE_TYPEALIAS 107
-#define VV_LEN		108	// number of v: vars
+#define VV_TYPE_ENUM	108
+#define VV_LEN		109	// number of v: vars
 
 // used for v_number in VAR_BOOL and VAR_SPECIAL
 #define VVAL_FALSE	0L	// VAR_BOOL

@@ -97,6 +97,7 @@ free_tv(typval_T *varp)
 	    break;
 
 	case VAR_ENUM:
+	    enum_unref(varp->vval.v_enum);
 	    break;
 
 	case VAR_NUMBER:
@@ -181,6 +182,7 @@ clear_tv(typval_T *varp)
 	    varp->vval.v_typealias = NULL;
 	    break;
 	case VAR_ENUM:
+	    enum_unref(varp->vval.v_enum);
 	    varp->vval.v_enum = NULL;
 	    break;
 	case VAR_UNKNOWN:
@@ -1289,6 +1291,10 @@ copy_tv(typval_T *from, typval_T *to)
 	    copy_object(from, to);
 	    break;
 
+	case VAR_ENUM:
+	    copy_enum(from, to);
+	    break;
+
 	case VAR_STRING:
 	case VAR_FUNC:
 	    if (from->vval.v_string == NULL)
@@ -1348,7 +1354,6 @@ copy_tv(typval_T *from, typval_T *to)
 	case VAR_VOID:
 	    emsg(_(e_cannot_use_void_value));
 	    break;
-	case VAR_ENUM:
 	case VAR_UNKNOWN:
 	case VAR_ANY:
 	    internal_error_no_abort("copy_tv(UNKNOWN)");

@@ -507,6 +507,69 @@ compile_class_object_index(cctx_T *cctx, char_u **arg, type_T *type)
 }
 
 /*
+ * Compile ".name" coming after an enum
+ */
+    static int
+compile_enum_index(
+    cctx_T	*cctx,
+    char_u	**arg,
+    type_T	*type,
+    ppconst_T	*ppconst)
+{
+    if (VIM_ISWHITE((*arg)[1]))
+    {
+	semsg(_(e_no_white_space_allowed_after_str_str), ".", *arg);
+	return FAIL;
+    }
+
+    enum_T *en = type->tt_enum;
+
+    garray_T *instr = &cctx->ctx_instr;
+    if (instr->ga_len > 0)
+    {
+	isn_T *isn = ((isn_T *)instr->ga_data) + instr->ga_len - 1;
+	if (isn->isn_type == ISN_LOADSCRIPT)
+	{
+	    // The enum was recognized as a script item.  This will be replaced
+	    // with the enum value. Drop the instruction.
+	    --instr->ga_len;
+	    vim_free(isn->isn_arg.script.scriptref);
+	}
+    }
+
+    if (en == NULL)
+    {
+	// TODO: this should not give an error but be handled at runtime
+	emsg(_(e_incomplete_type));
+	return FAIL;
+    }
+
+    ++*arg;
+    char_u *name = *arg;
+    char_u *name_end = find_name_end(name, NULL, NULL, FNE_CHECK_START);
+    if (name_end == name)
+	return FAIL;
+    size_t len = name_end - name;
+
+    typval_T	*tv = &ppconst->pp_tv[ppconst->pp_used];
+
+    if (get_enum_tv(en, name, len, tv) == FAIL)
+    {
+	char_u cc = *name_end;
+	*name_end = NUL;
+	semsg(_(e_enum_str_doesnt_support_item_str), en->enum_name, name);
+	*name_end = cc;
+	return FAIL;
+    }
+
+    ++ppconst->pp_used;
+
+    *arg = name_end;
+
+    return OK;
+}
+
+/*
  * Generate an instruction to load script-local variable "name", without the
  * leading "s:".
  * Also finds imported variables.
@@ -2462,7 +2525,8 @@ compile_subscript(
 		return FAIL;
 	    ppconst->pp_is_const = FALSE;
 
-	    if ((type = get_type_on_stack(cctx, 0)) != &t_unknown
+	    type = get_type_on_stack(cctx, 0);
+	    if (type != &t_unknown
 		    && (type->tt_type == VAR_CLASS
 					       || type->tt_type == VAR_OBJECT))
 	    {
@@ -2473,6 +2537,13 @@ compile_subscript(
 		// object method: someObject.SomeMethod(), this.SomeMethod()
 		*arg = p;
 		if (compile_class_object_index(cctx, arg, type) == FAIL)
+		    return FAIL;
+	    }
+	    else if (type->tt_type == VAR_ENUM)
+	    {
+		// enum value: SomeEnum.itemname
+		*arg = p;
+		if (compile_enum_index(cctx, arg, type, ppconst) == FAIL)
 		    return FAIL;
 	    }
 	    else

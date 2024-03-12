@@ -1523,11 +1523,6 @@ ex_class(exarg_T *eap)
     }
     char_u *name_start = arg;
 
-    // "export class" gets used when creating the class, don't use "is_export"
-    // for the items inside the class.
-    int class_export = is_export;
-    is_export = FALSE;
-
     // TODO:
     //    generics: <Tkey, Tentry>
 
@@ -1672,12 +1667,15 @@ early_ret:
     typval_T tv;
     tv.v_type = VAR_CLASS;
     tv.vval.v_class = cl;
-    is_export = class_export;
     SOURCING_LNUM = start_lnum;
     int rc = set_var_const(cl->class_name, current_sctx.sc_sid,
 						NULL, &tv, FALSE, 0, 0);
     if (rc == FAIL)
 	goto cleanup;
+
+    // "export class" gets used when creating the class, don't use "is_export"
+    // for the items inside the class.
+    is_export = FALSE;
 
     /*
      * Go over the body of the class/interface until "endclass" or
@@ -2265,6 +2263,47 @@ oc_member_type_by_idx(
 }
 
 /*
+ * :enum
+ */
+
+static enum_T *first_enum = NULL;
+static enum_T *next_nonref_enum = NULL;
+
+/*
+ * Call this function when a enum has been created.  It will be added to the
+ * list headed by "first_enum".
+ */
+    static void
+enum_created(enum_T *en)
+{
+    if (first_enum != NULL)
+    {
+	en->enum_next_used = first_enum;
+	first_enum->enum_prev_used = en;
+    }
+    first_enum = en;
+}
+
+/*
+ * Call this function when a enum has been cleared and is about to be freed.
+ * It is removed from the list headed by "first_enum".
+ */
+    static void
+enum_cleared(enum_T *en)
+{
+    if (en->enum_next_used != NULL)
+	en->enum_next_used->enum_prev_used = en->enum_prev_used;
+    if (en->enum_prev_used != NULL)
+	en->enum_prev_used->enum_next_used = en->enum_next_used;
+    else if (first_enum == en)
+	first_enum = en->enum_next_used;
+
+    // update the next enum to check if needed
+    if (en == next_nonref_enum)
+	next_nonref_enum = en->enum_next_used;
+}
+
+/*
  * Handle ":enum" up to ":endenum".
  */
     void
@@ -2272,6 +2311,7 @@ ex_enum(exarg_T *eap UNUSED)
 {
     long       start_lnum = SOURCING_LNUM;
     char_u     *arg = eap->arg;
+    garray_T	*gap = NULL;
 
     if (!current_script_is_vim9()
 	    || (cmdmod.cmod_flags & CMOD_LEGACY)
@@ -2320,9 +2360,10 @@ ex_enum(exarg_T *eap UNUSED)
      * Go over the body of the enum until "endenum" is found
      */
     char_u	*theline = NULL;
-    garray_T	*gap = &en->enum_item_list;
     int		success = FALSE;
     int		en_value = -1;
+
+    gap = &en->enum_item_list;
     for (;;)
     {
 	vim_free(theline);
@@ -2361,7 +2402,7 @@ ex_enum(exarg_T *eap UNUSED)
 
 	char_u *eni_name_start = p;
 	char_u *eni_name_end = to_name_end(p, FALSE);
-	p = eni_name_end + 1;
+	p = eni_name_end;
 
 	en_value += 1;
 	if (*p != NUL)
@@ -2369,7 +2410,7 @@ ex_enum(exarg_T *eap UNUSED)
 	    p = skipwhite(p);
 	    if (*p != '=')
 	    {
-		emsg(_(e_initialization_required_after_name));
+		semsg(_(e_missing_equal_str), line);
 		break;
 	    }
 	    if (!VIM_ISWHITE(p[-1]) || !VIM_ISWHITE(p[1]))
@@ -2387,9 +2428,11 @@ ex_enum(exarg_T *eap UNUSED)
 	    if (etv->v_type != VAR_NUMBER)
 	    {
 		emsg(_(e_number_required_after_equal));
+		vim_free(etv);
 		break;
 	    }
 	    en_value = etv->vval.v_number;
+	    vim_free(etv);
 	}
 
 	if (ga_grow(gap, 1) == FAIL)
@@ -2400,12 +2443,184 @@ ex_enum(exarg_T *eap UNUSED)
 	en_item->eni_value = en_value;
 	++gap->ga_len;
     }
+
+    if (theline == NULL && !success)
+	emsg(_(e_missing_endenum));
+
     vim_free(theline);
 
-    return;
+    if (success)
+    {
+	enum_created(en);
+	return;
+    }
 
 cleanup:
-    // TODO: Free the enum
+    // enum will be garbage collected.
+}
+
+/*
+ * Make a copy of a enum.
+ */
+    void
+copy_enum(typval_T *from, typval_T *to)
+{
+    if (from->vval.v_enum == NULL)
+	to->vval.v_enum = NULL;
+    else
+    {
+	to->vval.v_enum = from->vval.v_enum;
+	++to->vval.v_enum->enum_refcount;
+    }
+}
+
+/*
+ * Free the enum "en" and its contents.
+ */
+    static void
+enum_free(enum_T *en)
+{
+    // Freeing what the enum contains may recursively come back here.
+    // Clear "enum_name" first, if it is NULL the enum does not need to
+    // be freed.
+    VIM_CLEAR(en->enum_name);
+
+    enum_cleared(en);
+
+    garray_T	*gap = &en->enum_item_list;
+    for (int i = 0; i < gap->ga_len; i++)
+    {
+	enum_item_T *en_item = ((enum_item_T *)gap->ga_data) + i;
+	vim_free(en_item->eni_name);
+    }
+    ga_clear(&en->enum_item_list);
+    vim_free(en);
+}
+
+/*
+ * Unreference a enum.  Free it when the reference count goes down to zero.
+ */
+    void
+enum_unref(enum_T *en)
+{
+    if (en != NULL && --en->enum_refcount <= 0 && en->enum_name != NULL)
+	enum_free(en);
+}
+
+/*
+ * Go through the list of all enums and free items without "copyID".
+ */
+    int
+enum_free_nonref(int copyID)
+{
+    int		did_free = FALSE;
+
+    for (enum_T *cl = first_enum; cl != NULL; cl = next_nonref_enum)
+    {
+	next_nonref_enum = cl->enum_next_used;
+	if ((cl->enum_copyID & COPYID_MASK) != (copyID & COPYID_MASK))
+	{
+	    // Free the enum and items it contains.
+	    enum_free(cl);
+	    did_free = TRUE;
+	}
+    }
+
+    next_nonref_enum = NULL;
+    return did_free;
+}
+
+    int
+set_ref_in_enums(int copyID)
+{
+    for (enum_T *en = first_enum; en != NULL; en = en->enum_next_used)
+	en->enum_copyID = copyID;
+
+    return FALSE;
+}
+
+    int
+get_enum_tv(enum_T *en, char_u *name, size_t namelen, typval_T *rettv)
+{
+    garray_T	*gap = &en->enum_item_list;
+    for (int i = 0; i < gap->ga_len; i++)
+    {
+	enum_item_T *en_item = ((enum_item_T *)gap->ga_data) + i;
+	if (STRNCMP(en_item->eni_name, name, namelen) == 0)
+	{
+	    rettv->v_type = VAR_NUMBER;
+	    rettv->vval.v_number = en_item->eni_value;
+	    return OK;
+	}
+    }
+
+    return FAIL;
+}
+
+/*
+ * Evaluate an enum item: SomeEnum.itemname
+ *
+ * "*arg" points to the '.'.
+ * "*arg" is advanced to after the item name.
+ *
+ * Returns FAIL or OK.
+ */
+    int
+enum_index(
+    char_u	**arg,
+    typval_T	*rettv,
+    evalarg_T	*evalarg UNUSED,
+    int		verbose UNUSED)	// give error messages
+{
+    if (VIM_ISWHITE((*arg)[1]))
+    {
+	semsg(_(e_no_white_space_allowed_after_str_str), ".", *arg);
+	return FAIL;
+    }
+
+    ++*arg;
+    char_u *name = *arg;
+    char_u *name_end = find_name_end(name, NULL, NULL, FNE_CHECK_START);
+    if (name_end == name)
+	return FAIL;
+    size_t len = name_end - name;
+
+    enum_T *en = rettv->vval.v_enum;
+    if (en == NULL)
+    {
+	emsg(_(e_incomplete_type));
+	return FAIL;
+    }
+
+    if (get_enum_tv(en, name, len, rettv) == OK)
+    {
+	*arg = name_end;
+	return OK;
+    }
+
+    char_u cc = *name_end;
+    *name_end = NUL;
+    semsg(_(e_enum_str_doesnt_support_item_str), en->enum_name, name);
+    *name_end = cc;
+    return FAIL;
+}
+
+/*
+ * Returns OK if "value" is one of the supported enums in "en".
+ */
+    int
+check_enum_value(enum_T *en, int value)
+{
+    garray_T	*gap = &en->enum_item_list;
+    for (int i = 0; i < gap->ga_len; i++)
+    {
+	enum_item_T *en_item = ((enum_item_T *)gap->ga_data) + i;
+	if (en_item->eni_value == value)
+	    return OK;
+    }
+
+    semsg(_(e_enum_str_doesnt_support_value_nr), en->enum_name, value);
+    return FAIL;
 }
 
 /*

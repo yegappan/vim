@@ -1508,6 +1508,7 @@ struct type_S {
     char_u	    tt_flags;	    // TTFLAG_ values
     type_T	    *tt_member;	    // for list, dict, func return type
     class_T	    *tt_class;	    // for class and object
+    enum_T	    *tt_enum;	    // for enum
     type_T	    **tt_args;	    // func argument types, allocated
 };
 
@@ -1654,6 +1655,8 @@ struct enum_S
     garray_T	enum_item_list;		// used for enum values
     int		enum_refcount;
     int		enum_copyID;		// used by garbage collection
+    enum_T	*enum_next_used;	// for list headed by "first_enum"
+    enum_T	*enum_prev_used;	// for list headed by "first_enum"
 };
 
 /*

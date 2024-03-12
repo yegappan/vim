@@ -159,6 +159,7 @@ static struct vimvar
     {VV_NAME("maxcol",		 VAR_NUMBER), NULL, VV_RO},
     {VV_NAME("python3_version",	 VAR_NUMBER), NULL, VV_RO},
     {VV_NAME("t_typealias",	 VAR_NUMBER), NULL, VV_RO},
+    {VV_NAME("t_enum",		 VAR_NUMBER), NULL, VV_RO},
 };
 
 // shorthand
@@ -3856,6 +3857,15 @@ set_var_const(
     int		flags = flags_arg;
     int		free_tv_arg = !copy;  // free tv_arg if not used
     int		rc = FAIL;
+
+    // When assigning to a enum type variable, check the value is one of the
+    // supported enum values.
+    if (type != NULL && type->tt_type == VAR_ENUM
+	    && tv_arg != NULL && tv_arg->v_type == VAR_NUMBER)
+    {
+	if (check_enum_value(type->tt_enum, tv_arg->vval.v_number) == FAIL)
+	    goto failed;
+    }
 
     if (sid != 0)
     {

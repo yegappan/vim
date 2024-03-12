@@ -595,6 +595,19 @@ typval2type_int(typval_T *tv, int copyID, garray_T *type_gap, int flags)
 	}
     }
 
+    if (tv->v_type == VAR_ENUM)
+    {
+	type = get_type_ptr(type_gap);
+	if (type == NULL)
+	    return NULL;
+	type->tt_type = tv->v_type;
+	type->tt_argcount = argcount;
+	type->tt_min_argcount = min_argcount;
+	type->tt_enum = tv->vval.v_enum;
+
+	return type;
+    }
+
     if (tv->v_type == VAR_CLASS)
 	class_type = tv->vval.v_class;
     else if (tv->v_type == VAR_OBJECT && tv->vval.v_object != NULL)
@@ -719,7 +732,16 @@ check_typval_type(type_T *expected, typval_T *actual_tv, where_T where)
 
     if (expected == NULL)
 	return OK;  // didn't expect anything.
-		    //
+
+    if (expected->tt_type == VAR_ENUM)
+    {
+	enum_T *en = expected->tt_enum;
+	varnumber_T val = actual_tv->vval.v_number;
+
+	if (check_enum_value(en, val) == FAIL)
+	    return FAIL;
+    }
+
     ga_init2(&type_list, sizeof(type_T *), 10);
 
     // A null_function and null_partial are special cases, they can be used to
@@ -870,6 +892,11 @@ check_type_maybe(
 		    && ((expected->tt_flags & TTFLAG_NUMBER_OK)
 			     || (actual->tt_flags & TTFLAG_FLOAT_OK)))
 		// Using a number where a float is expected is OK here.
+		return OK;
+	    if (expected->tt_type == VAR_ENUM
+					&& actual->tt_type == VAR_NUMBER)
+		// Using a number type for an enum is OK.  The supported enum
+		// values are checked when assigning the variable.
 		return OK;
 	    if (give_msg)
 		type_mismatch_where(expected, actual, where);
@@ -1406,6 +1433,21 @@ parse_type(char_u **arg, garray_T *type_gap, int give_error)
 	    while (ASCII_ISALNUM(**arg) || **arg == '_' || **arg == '.')
 		++*arg;
 	    return type;
+	}
+	else if (tv.v_type == VAR_ENUM)
+	{
+	    // enum
+	    type_T *type = get_type_ptr(type_gap);
+	    if (type != NULL)
+	    {
+		type->tt_type = VAR_ENUM;
+		type->tt_enum = tv.vval.v_enum;
+		clear_tv(&tv);
+
+		*arg += len;
+
+		return type;
+	    }
 	}
 
 	clear_tv(&tv);

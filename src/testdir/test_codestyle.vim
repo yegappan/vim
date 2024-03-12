@@ -77,6 +77,7 @@ def Test_test_files()
       var lnum = search(
           fname =~ 'test_vim9_assign.vim' ? '[^=]\s$'
           : fname =~ 'test_vim9_class.vim' ? '[^)]\s$'
+          : fname =~ 'test_vim9_enum.vim' ? '[^)]\s$'
           : fname =~ 'test_vim9_script.vim' ? '[^,:3]\s$'
           : fname =~ 'test_visual.vim' ? '[^/]\s$'
           : '[^\\]\s$')

@@ -3593,8 +3593,14 @@ EXTERN char e_invalid_enum_value_declaration_str[]
 	INIT(= N_("E1416: Invalid enum value declaration: %s"));
 EXTERN char e_initialization_required_after_name[]
 	INIT(= N_("E1417: Initialization required after name"));
+EXTERN char e_missing_endenum[]
+	INIT(= N_("E1418: Missing :endenum"));
+EXTERN char e_enum_str_doesnt_support_item_str[]
+	INIT(= N_("E1419: Enum \"%s\" doesn't support item \"%s\""));
+EXTERN char e_enum_str_doesnt_support_value_nr[]
+	INIT(= N_("E1420: Enum \"%s\" doesn't support value %d"));
 #endif
-// E1418 - E1499 unused (reserved for Vim9 class support)
+// E1421 - E1499 unused (reserved for Vim9 class support)
 EXTERN char e_cannot_mix_positional_and_non_positional_str[]
 	INIT(= N_("E1500: Cannot mix positional and non-positional arguments: %s"));
 EXTERN char e_fmt_arg_nr_unused_str[]
