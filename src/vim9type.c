@@ -893,8 +893,10 @@ check_type_maybe(
 			     || (actual->tt_flags & TTFLAG_FLOAT_OK)))
 		// Using a number where a float is expected is OK here.
 		return OK;
-	    if (expected->tt_type == VAR_ENUM
+	    if ((expected->tt_type == VAR_ENUM
 					&& actual->tt_type == VAR_NUMBER)
+		    || (expected->tt_type == VAR_NUMBER
+					&& actual->tt_type == VAR_ENUM))
 		// Using a number type for an enum is OK.  The supported enum
 		// values are checked when assigning the variable.
 		return OK;

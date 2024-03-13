@@ -146,6 +146,17 @@ def Test_enum_parse()
   END
   v9.CheckSourceFailure(lines, 'E521: Number required after =', 3)
 
+  # Use a string for an enum
+  lines =<< trim END
+    vim9script
+    enum Foo
+      apple = 'Apple'
+      orange = 'Orange'
+    endenum
+    assert_equal('Orange', Foo.orange)
+  END
+  v9.CheckSourceFailure(lines, 'E521: Number required after =', 3)
+
   # Use a colon after name
   lines =<< trim END
     vim9script
@@ -360,6 +371,51 @@ def Test_basic_enum()
     enddef
     assert_equal(10, Fn(Foo.apple))
     assert_equal(20, Fn(20))
+  END
+  v9.CheckSourceSuccess(lines)
+
+  # Returning an enum in a function returning number
+  lines =<< trim END
+    vim9script
+    enum Foo
+      apple = 10,
+      orange = 20
+    endenum
+    def Fn(): number
+      return Foo.orange
+    enddef
+    assert_equal(20, Fn())
+  END
+  v9.CheckSourceSuccess(lines)
+
+  # Returning a number in a function returning enum
+  lines =<< trim END
+    vim9script
+    enum Foo
+      apple = 10,
+      orange = 20
+    endenum
+    def Fn(): Foo
+      return 20
+    enddef
+    assert_equal(20, Fn())
+  END
+  v9.CheckSourceSuccess(lines)
+
+  # Use a List of enums
+  lines =<< trim END
+    vim9script
+    enum Planets
+      Mercury = 10,
+      Venus = 20,
+      Earth = 30
+    endenum
+    var l1: list<Planets> = [Planets.Mercury, Planets.Venus]
+    assert_equal(20, l1[1])
+    def Fn()
+      var l2: list<Planets> = [Planets.Mercury, Planets.Venus]
+      assert_equal(20, l2[1])
+    enddef
   END
   v9.CheckSourceSuccess(lines)
 enddef
