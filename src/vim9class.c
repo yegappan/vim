@@ -2362,6 +2362,7 @@ ex_enum(exarg_T *eap UNUSED)
     char_u	*theline = NULL;
     int		success = FALSE;
     int		en_value = -1;
+    char_u	last_char = ',';
 
     gap = &en->enum_item_list;
     for (;;)
@@ -2394,54 +2395,84 @@ ex_enum(exarg_T *eap UNUSED)
 	    break;
 	}
 
-	if (!eval_isnamec1(*p))
+	if (last_char != ',')
 	{
-	    semsg(_(e_invalid_enum_value_declaration_str), p);
+	    // the previous line must be terminated by a ","
+	    semsg(_(e_missing_comma_before_argument_str), line);
 	    break;
 	}
 
-	char_u *eni_name_start = p;
-	char_u *eni_name_end = to_name_end(p, FALSE);
-	p = eni_name_end;
+	while (*p != NUL)
+	{
+	    if (!eval_isnamec1(*p))
+	    {
+		semsg(_(e_invalid_enum_value_declaration_str), p);
+		break;
+	    }
 
-	en_value += 1;
+	    char_u *eni_name_start = p;
+	    char_u *eni_name_end = to_name_end(p, FALSE);
+	    p = skipwhite(eni_name_end);
+
+	    en_value += 1;
+	    if (*p == '=')
+	    {
+		if (!VIM_ISWHITE(p[-1]) || !VIM_ISWHITE(p[1]))
+		{
+		    semsg(_(e_white_space_required_before_and_after_str_at_str),
+			    "=", line);
+		    break;
+		}
+		p = skipwhite(p + 1);
+
+		if (*p == NUL)
+		{
+		    semsg(_(e_invalid_expression_str), p);
+		    break;
+		}
+
+		evalarg_T evalarg;
+		typval_T etv;
+
+		fill_evalarg_from_eap(&evalarg, eap, FALSE);
+		if (eval1(&p, &etv, &evalarg) == FAIL)
+		    break;
+		if (etv.v_type != VAR_NUMBER)
+		{
+		    emsg(_(e_number_required_after_equal));
+		    break;
+		}
+		en_value = etv.vval.v_number;
+	    }
+
+	    if (ga_grow(gap, 1) == FAIL)
+		break;
+	    enum_item_T *en_item = ((enum_item_T *)gap->ga_data) + gap->ga_len;
+	    en_item->eni_name = vim_strnsave(eni_name_start,
+					eni_name_end - eni_name_start);
+	    en_item->eni_value = en_value;
+	    ++gap->ga_len;
+
+	    last_char = *p;
+
+	    if (*p == ',')
+	    {
+		if (!IS_WHITE_OR_NUL(p[1]))
+		{
+		    semsg(_(e_white_space_required_after_str_str), ",", line);
+		    break;
+		}
+		if (VIM_ISWHITE(p[-1]))
+		{
+		    semsg(_(e_no_white_space_allowed_before_str_str), ",", line);
+		    break;
+		}
+		p = skipwhite(p + 1);
+	    }
+	}
+
 	if (*p != NUL)
-	{
-	    p = skipwhite(p);
-	    if (*p != '=')
-	    {
-		semsg(_(e_missing_equal_str), line);
-		break;
-	    }
-	    if (!VIM_ISWHITE(p[-1]) || !VIM_ISWHITE(p[1]))
-	    {
-		semsg(_(e_white_space_required_before_and_after_str_at_str),
-			"=", line);
-		break;
-	    }
-	    p++;
-	    p = skipwhite(p);
-
-	    typval_T *etv = eval_expr(p, eap);
-	    if (etv == NULL)
-		break;
-	    if (etv->v_type != VAR_NUMBER)
-	    {
-		emsg(_(e_number_required_after_equal));
-		vim_free(etv);
-		break;
-	    }
-	    en_value = etv->vval.v_number;
-	    vim_free(etv);
-	}
-
-	if (ga_grow(gap, 1) == FAIL)
 	    break;
-	enum_item_T *en_item = ((enum_item_T *)gap->ga_data) + gap->ga_len;
-	en_item->eni_name = vim_strnsave(eni_name_start,
-				    eni_name_end - eni_name_start);
-	en_item->eni_value = en_value;
-	++gap->ga_len;
     }
 
     if (theline == NULL && !success)

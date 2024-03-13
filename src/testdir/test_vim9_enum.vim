@@ -89,7 +89,7 @@ def Test_enum_parse()
   lines =<< trim END
     vim9script
     enum Foo
-      first
+      first,
       second= 20
     endenum
   END
@@ -99,7 +99,7 @@ def Test_enum_parse()
   lines =<< trim END
     vim9script
     enum Foo
-      first
+      first,
       second =20
     endenum
   END
@@ -109,17 +109,17 @@ def Test_enum_parse()
   lines =<< trim END
     vim9script
     enum Foo
-      first
+      first,
       second : 20
     endenum
   END
-  v9.CheckSourceFailure(lines, "E398: Missing '=': second : 20", 4)
+  v9.CheckSourceFailure(lines, "E1416: Invalid enum value declaration: : 20", 4)
 
   # Missing number after '='
   lines =<< trim END
     vim9script
     enum Foo
-      first
+      first,
       second = 
     endenum
   END
@@ -129,23 +129,34 @@ def Test_enum_parse()
   lines =<< trim END
     vim9script
     enum Foo
-      first
+      first,
       second = []
     endenum
   END
   v9.CheckSourceFailure(lines, 'E521: Number required after =', 4)
 
-  # Use a comma after name
+  # Use a float for an enum
+  lines =<< trim END
+    vim9script
+    enum Foo
+      apple = 1.0,
+      orange = 2.0
+    endenum
+    assert_equal(1.0, Foo.apple)
+  END
+  v9.CheckSourceFailure(lines, 'E521: Number required after =', 3)
+
+  # Use a colon after name
   lines =<< trim END
     vim9script
     enum Foo
 
       # first
-      first,
+      first:
       second
     endenum
   END
-  v9.CheckSourceFailure(lines, "E398: Missing '=': first,", 5)
+  v9.CheckSourceFailure(lines, "E1416: Invalid enum value declaration: :", 5)
 
   # Use a '=='
   lines =<< trim END
@@ -155,6 +166,80 @@ def Test_enum_parse()
     endenum
   END
   v9.CheckSourceFailure(lines, "E1004: White space required before and after '=' at \"first == 1\"", 3)
+
+  # Missing comma after an enum item
+  lines =<< trim END
+    vim9script
+    enum Planets
+      mercury
+      venus
+    endenum
+  END
+  v9.CheckSourceFailure(lines, "E1123: Missing comma before argument: venus", 4)
+
+  # Comma at the beginning of an item
+  lines =<< trim END
+    vim9script
+    enum Planets
+      mercury
+      ,venus
+    endenum
+  END
+  v9.CheckSourceFailure(lines, 'E1123: Missing comma before argument: ,venus', 4)
+  # Space before comma
+  lines =<< trim END
+    vim9script
+    enum Planets
+      mercury ,
+      venus
+    endenum
+  END
+  v9.CheckSourceFailure(lines, "E1068: No white space allowed before ','", 3)
+
+  # No space after comma
+  lines =<< trim END
+    vim9script
+    enum Planets
+      mercury,venus
+    endenum
+  END
+  v9.CheckSourceFailure(lines, "E1069: White space required after ',': mercury,venus", 3)
+
+  # extra space after comma at the end
+  lines =<< trim END
+    vim9script
+    enum Planets
+      mercury,  
+      venus  
+    endenum
+    assert_equal(0, Planets.mercury)
+    assert_equal(1, Planets.venus)
+  END
+  v9.CheckSourceSuccess(lines)
+
+  # No space after an item and comment between items
+  lines =<< trim END
+    vim9script
+    enum Planets
+      mercury
+
+      # Venus
+      venus
+    endenum
+  END
+  v9.CheckSourceFailure(lines, 'E1123: Missing comma before argument: venus', 6)
+
+  # Comma is supported for the last item
+  lines =<< trim END
+    vim9script
+    enum Planets
+      mercury = 1,
+      venus = 2,
+    endenum
+    assert_equal(1, Planets.mercury)
+    assert_equal(2, Planets.venus)
+  END
+  v9.CheckSourceSuccess(lines)
 enddef
 
 def Test_basic_enum()
@@ -162,7 +247,7 @@ def Test_basic_enum()
   var lines =<< trim END
     vim9script
     enum Foo
-      apple = 10
+      apple = 10,
       orange = 20
     endenum
     assert_equal(10, Foo.apple)
@@ -170,11 +255,60 @@ def Test_basic_enum()
   END
   v9.CheckSourceSuccess(lines)
 
+  # Multiple enums in a single line
+  lines =<< trim END
+    vim9script
+    enum Foo
+      apple = 10, orange = 20
+    endenum
+    assert_equal(10, Foo.apple)
+    assert_equal(20, Foo.orange)
+  END
+  v9.CheckSourceSuccess(lines)
+
+  # Successive enums should get a value one more than the previous
+  lines =<< trim END
+    vim9script
+    enum Foo
+      apple, orange
+    endenum
+    assert_equal(0, Foo.apple)
+    assert_equal(1, Foo.orange)
+  END
+  v9.CheckSourceSuccess(lines)
+
+  # Negative values are supported for enums
+  lines =<< trim END
+    vim9script
+    enum Foo
+      apple = -2,
+      orange
+    endenum
+    assert_equal(-2, Foo.apple)
+    assert_equal(-1, Foo.orange)
+  END
+  v9.CheckSourceSuccess(lines)
+
+  # Comments and empty lines are supported between enum items
+  lines =<< trim END
+    vim9script
+    enum Foo
+      # Apple
+      apple,
+
+      # Orange
+      orange
+    endenum
+    assert_equal(0, Foo.apple)
+    assert_equal(1, Foo.orange)
+  END
+  v9.CheckSourceSuccess(lines)
+
   # Use a variable of type enum
   lines =<< trim END
     vim9script
     enum Foo
-      apple = 10
+      apple = 10,
       orange = 20
     endenum
     var a: Foo = Foo.orange
@@ -186,7 +320,7 @@ def Test_basic_enum()
   lines =<< trim END
     vim9script
     enum Foo
-      apple = 10
+      apple = 10,
       orange = 20
     endenum
     var a: Foo = 30
@@ -197,7 +331,7 @@ def Test_basic_enum()
   lines =<< trim END
     vim9script
     enum Foo
-      apple = 10
+      apple = 10,
       orange = 20
     endenum
     assert_equal(30, Foo.pear)
@@ -218,7 +352,7 @@ def Test_basic_enum()
   lines =<< trim END
     vim9script
     enum Foo
-      apple = 10
+      apple = 10,
       orange = 20
     endenum
     def Fn(a: Foo): Foo
