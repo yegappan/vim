@@ -1489,8 +1489,18 @@ get_lval_list(
 	return FAIL;
 
     if (lp->ll_valtype != NULL && !lp->ll_range)
+    {
 	// use the type of the member
-	lp->ll_valtype = lp->ll_valtype->tt_member;
+	if (lp->ll_valtype->tt_member != NULL)
+	    lp->ll_valtype = lp->ll_valtype->tt_member;
+	else
+	    // If the LHS member type is not known (VAR_ANY), then get it from
+	    // the list item (after indexing)
+	    lp->ll_valtype = typval2type(&lp->ll_li->li_tv, get_copyID(),
+			    &SCRIPT_ITEM(current_sctx.sc_sid)->sn_type_list,
+			    TVTT_DO_MEMBER);
+
+    }
 
     /*
      * May need to find the item or absolute index for the second
