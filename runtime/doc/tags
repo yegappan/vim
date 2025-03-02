@@ -5778,6 +5778,8 @@ TextChangedP	autocmd.txt	/*TextChangedP*
 TextChangedT	autocmd.txt	/*TextChangedT*
 TextYankPost	autocmd.txt	/*TextYankPost*
 Transact-SQL	ft_sql.txt	/*Transact-SQL*
+Tuple	eval.txt	/*Tuple*
+Tuples	eval.txt	/*Tuples*
 U	undo.txt	/*U*
 UTF-8	mbyte.txt	/*UTF-8*
 UTF8-xterm	mbyte.txt	/*UTF8-xterm*
@@ -10795,6 +10797,7 @@ test_null_job()	testing.txt	/*test_null_job()*
 test_null_list()	testing.txt	/*test_null_list()*
 test_null_partial()	testing.txt	/*test_null_partial()*
 test_null_string()	testing.txt	/*test_null_string()*
+test_null_tuple()	testing.txt	/*test_null_tuple()*
 test_option_not_set()	testing.txt	/*test_option_not_set()*
 test_override()	testing.txt	/*test_override()*
 test_refcount()	testing.txt	/*test_refcount()*
@@ -10880,6 +10883,7 @@ try-echoerr	eval.txt	/*try-echoerr*
 try-finally	eval.txt	/*try-finally*
 try-nested	eval.txt	/*try-nested*
 try-nesting	eval.txt	/*try-nesting*
+tuple	eval.txt	/*tuple*
 tutor	usr_01.txt	/*tutor*
 two-engines	pattern.txt	/*two-engines*
 type()	builtin.txt	/*type()*

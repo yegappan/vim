@@ -2786,6 +2786,9 @@ push_default_value(
 	case VAR_LIST:
 	    r = generate_NEWLIST(cctx, 0, FALSE);
 	    break;
+	case VAR_TUPLE:
+	    r = generate_NEWTUPLE(cctx, 0, FALSE);
+	    break;
 	case VAR_DICT:
 	    r = generate_NEWDICT(cctx, 0, FALSE);
 	    break;
