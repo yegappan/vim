@@ -2991,7 +2991,7 @@ f_remove(typval_T *argvars, typval_T *rettv)
     else if (argvars[0].v_type == VAR_LIST)
 	list_remove(argvars, rettv, arg_errmsg);
     else
-	semsg(_(e_argument_of_str_must_be_list_dictionary_or_blob), "remove()");
+	semsg(_(e_argument_of_str_must_be_list_tuple_dictionary_or_blob), "remove()");
 }
 
     static void

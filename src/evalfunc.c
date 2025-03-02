@@ -4226,6 +4226,10 @@ f_empty(typval_T *argvars, typval_T *rettv)
 	    n = argvars[0].vval.v_list == NULL
 					|| argvars[0].vval.v_list->lv_len == 0;
 	    break;
+	case VAR_TUPLE:
+	    n = argvars[0].vval.v_tuple == NULL
+				|| TUPLE_LEN(argvars[0].vval.v_tuple) == 0;
+	    break;
 	case VAR_DICT:
 	    n = argvars[0].vval.v_dict == NULL
 			|| argvars[0].vval.v_dict->dv_hashtab.ht_used == 0;
@@ -5263,6 +5267,7 @@ f_get(typval_T *argvars, typval_T *rettv)
 {
     listitem_T	*li;
     list_T	*l;
+    tuple_T	*t;
     dictitem_T	*di;
     dict_T	*d;
     typval_T	*tv = NULL;
@@ -5296,6 +5301,18 @@ f_get(typval_T *argvars, typval_T *rettv)
 	    li = list_find(l, (long)tv_get_number_chk(&argvars[1], &error));
 	    if (!error && li != NULL)
 		tv = &li->li_tv;
+	}
+    }
+    else if (argvars[0].v_type == VAR_TUPLE)
+    {
+	if ((t = argvars[0].vval.v_tuple) != NULL)
+	{
+	    int		error = FALSE;
+	    long	idx;
+
+	    idx = (long)tv_get_number_chk(&argvars[1], &error);
+	    if (!error)
+		tv = tuple_find(t, idx);
 	}
     }
     else if (argvars[0].v_type == VAR_DICT)
@@ -5400,7 +5417,7 @@ f_get(typval_T *argvars, typval_T *rettv)
 	}
     }
     else
-	semsg(_(e_argument_of_str_must_be_list_dictionary_or_blob), "get()");
+	semsg(_(e_argument_of_str_must_be_list_tuple_dictionary_or_blob), "get()");
 
     if (tv == NULL)
     {
@@ -8487,6 +8504,9 @@ f_len(typval_T *argvars, typval_T *rettv)
 	    break;
 	case VAR_LIST:
 	    rettv->vval.v_number = list_len(argvars[0].vval.v_list);
+	    break;
+	case VAR_TUPLE:
+	    rettv->vval.v_number = tuple_len(argvars[0].vval.v_tuple);
 	    break;
 	case VAR_DICT:
 	    rettv->vval.v_number = dict_len(argvars[0].vval.v_dict);
@@ -12191,6 +12211,7 @@ f_type(typval_T *argvars, typval_T *rettv)
 	case VAR_PARTIAL:
 	case VAR_FUNC:    n = VAR_TYPE_FUNC; break;
 	case VAR_LIST:    n = VAR_TYPE_LIST; break;
+	case VAR_TUPLE:    n = VAR_TYPE_TUPLE; break;
 	case VAR_DICT:    n = VAR_TYPE_DICT; break;
 	case VAR_FLOAT:   n = VAR_TYPE_FLOAT; break;
 	case VAR_BOOL:	  n = VAR_TYPE_BOOL; break;

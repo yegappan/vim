@@ -162,6 +162,7 @@ static struct vimvar
     {VV_NAME("t_enum",		 VAR_NUMBER), NULL, VV_RO},
     {VV_NAME("t_enumvalue",	 VAR_NUMBER), NULL, VV_RO},
     {VV_NAME("stacktrace",	 VAR_LIST), &t_list_dict_any, VV_RO},
+    {VV_NAME("t_tuple",		 VAR_NUMBER), NULL, VV_RO},
 };
 
 // shorthand
@@ -265,8 +266,9 @@ evalvars_init(void)
     set_vim_var_nr(VV_TYPE_CLASS,   VAR_TYPE_CLASS);
     set_vim_var_nr(VV_TYPE_OBJECT,  VAR_TYPE_OBJECT);
     set_vim_var_nr(VV_TYPE_TYPEALIAS,  VAR_TYPE_TYPEALIAS);
-    set_vim_var_nr(VV_TYPE_ENUM,  VAR_TYPE_ENUM);
+    set_vim_var_nr(VV_TYPE_ENUM,    VAR_TYPE_ENUM);
     set_vim_var_nr(VV_TYPE_ENUMVALUE,  VAR_TYPE_ENUMVALUE);
+    set_vim_var_nr(VV_TYPE_TUPLE,   VAR_TYPE_TUPLE);
 
     set_vim_var_nr(VV_ECHOSPACE,    sc_col - 1);
 
@@ -321,13 +323,13 @@ evalvars_clear(void)
     int
 garbage_collect_globvars(int copyID)
 {
-    return set_ref_in_ht(&globvarht, copyID, NULL);
+    return set_ref_in_ht(&globvarht, copyID, NULL, NULL);
 }
 
     int
 garbage_collect_vimvars(int copyID)
 {
-    return set_ref_in_ht(&vimvarht, copyID, NULL);
+    return set_ref_in_ht(&vimvarht, copyID, NULL, NULL);
 }
 
     int
@@ -340,7 +342,7 @@ garbage_collect_scriptvars(int copyID)
 
     for (i = 1; i <= script_items.ga_len; ++i)
     {
-	abort = abort || set_ref_in_ht(&SCRIPT_VARS(i), copyID, NULL);
+	abort = abort || set_ref_in_ht(&SCRIPT_VARS(i), copyID, NULL, NULL);
 
 	si = SCRIPT_ITEM(i);
 	for (idx = 0; idx < si->sn_var_vals.ga_len; ++idx)
@@ -348,7 +350,7 @@ garbage_collect_scriptvars(int copyID)
 	    svar_T    *sv = ((svar_T *)si->sn_var_vals.ga_data) + idx;
 
 	    if (sv->sv_name != NULL)
-		abort = abort || set_ref_in_item(sv->sv_tv, copyID, NULL, NULL);
+		abort = abort || set_ref_in_item(sv->sv_tv, copyID, NULL, NULL, NULL);
 	}
     }
 
@@ -2342,6 +2344,7 @@ item_lock(typval_T *tv, int deep, int lock, int check_refcount)
     static int	recurse = 0;
     list_T	*l;
     listitem_T	*li;
+    tuple_T	*t;
     dict_T	*d;
     blob_T	*b;
     hashitem_T	*hi;
@@ -2415,6 +2418,23 @@ item_lock(typval_T *tv, int deep, int lock, int check_refcount)
 			FOR_ALL_LIST_ITEMS(l, li) item_lock(&li->li_tv,
 					       deep - 1, lock, check_refcount);
 		    }
+		}
+	    }
+	    break;
+	case VAR_TUPLE:
+	    if ((t = tv->vval.v_tuple) != NULL
+				    && !(check_refcount && t->tv_refcount > 1))
+	    {
+		if (lock)
+		    t->tv_lock |= VAR_LOCKED;
+		else
+		    t->tv_lock &= ~VAR_LOCKED;
+		if (deep < 0 || deep > 1)
+		{
+		    // recursive: lock/unlock the items the List contains
+		    for (int i = 0; i < TUPLE_LEN(t); i++)
+			item_lock(TUPLE_ITEM(t, i), deep - 1, lock,
+							check_refcount);
 		}
 	    }
 	    break;

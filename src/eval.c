@@ -2575,6 +2575,7 @@ tv_op(typval_T *tv1, typval_T *tv2, char_u *op)
 	case VAR_OBJECT:
 	case VAR_CLASS:
 	case VAR_TYPEALIAS:
+	case VAR_TUPLE:
 	    break;
 
 	case VAR_BLOB:
@@ -4796,16 +4797,26 @@ eval9_nested_expr(
     if (ret == NOTDONE)
     {
 	*arg = skipwhite_and_linebreak(*arg + 1, evalarg);
-	ret = eval1(arg, rettv, evalarg);	// recursive!
-
-	*arg = skipwhite_and_linebreak(*arg, evalarg);
 	if (**arg == ')')
-	    ++*arg;
-	else if (ret == OK)
+	    // empty tuple
+	    ret = eval_tuple(arg, rettv, evalarg, TRUE);
+	else
 	{
-	    emsg(_(e_missing_closing_paren));
-	    clear_tv(rettv);
-	    ret = FAIL;
+	    ret = eval1(arg, rettv, evalarg);	// recursive!
+
+	    *arg = skipwhite_and_linebreak(*arg, evalarg);
+
+	    if (**arg == ',')
+		// tuple
+		ret = eval_tuple(arg, rettv, evalarg, TRUE);
+	    else if (**arg == ')')
+		++*arg;
+	    else if (ret == OK)
+	    {
+		emsg(_(e_missing_closing_paren));
+		clear_tv(rettv);
+		ret = FAIL;
+	    }
 	}
     }
 
@@ -5049,6 +5060,7 @@ eval9(
     /*
      * nested expression: (expression).
      * or lambda: (arg) => expr
+     * or tuple
      */
     case '(':	ret = eval9_nested_expr(arg, rettv, evalarg, evaluate);
 		break;
@@ -5603,6 +5615,7 @@ check_can_index(typval_T *rettv, int evaluate, int verbose)
 
 	case VAR_STRING:
 	case VAR_LIST:
+	case VAR_TUPLE:
 	case VAR_DICT:
 	case VAR_BLOB:
 	    break;
@@ -5731,6 +5744,16 @@ eval_index_inner(
 	    if (var2 == NULL)
 		n2 = VARNUM_MAX;
 	    if (list_slice_or_index(rettv->vval.v_list,
+			  is_range, n1, n2, exclusive, rettv, verbose) == FAIL)
+		return FAIL;
+	    break;
+
+	case VAR_TUPLE:
+	    if (var1 == NULL)
+		n1 = 0;
+	    if (var2 == NULL)
+		n2 = VARNUM_MAX;
+	    if (tuple_slice_or_index(rettv->vval.v_tuple,
 			  is_range, n1, n2, exclusive, rettv, verbose) == FAIL)
 		return FAIL;
 	    break;
@@ -6080,6 +6103,50 @@ list_tv2string(
 }
 
 /*
+ * Return a textual representation of a Tuple in "tv".
+ * If the memory is allocated "tofree" is set to it, otherwise NULL.
+ * When "copyID" is not zero replace recursive lists with "...".  When
+ * "restore_copyID" is FALSE, repeated items in tuples are replaced with "...".
+ * May return NULL.
+ */
+    static char_u *
+tuple_tv2string(
+    typval_T	*tv,
+    char_u	**tofree,
+    int		copyID,
+    int		restore_copyID)
+{
+    char_u	*r = NULL;
+
+    if (tv->vval.v_tuple == NULL)
+    {
+	// NULL tuple is equivalent to an empty tuple.
+	*tofree = NULL;
+	r = (char_u *)"()";
+    }
+    else if (copyID != 0 && tv->vval.v_tuple->tv_copyID == copyID
+	    && tv->vval.v_tuple->tv_items.ga_len > 0)
+    {
+	*tofree = NULL;
+	r = (char_u *)"(...)";
+    }
+    else
+    {
+	int old_copyID;
+	if (restore_copyID)
+	    old_copyID = tv->vval.v_tuple->tv_copyID;
+
+	tv->vval.v_tuple->tv_copyID = copyID;
+	*tofree = tuple2string(tv, copyID, restore_copyID);
+	if (restore_copyID)
+	    tv->vval.v_tuple->tv_copyID = old_copyID;
+	r = *tofree;
+    }
+
+    return r;
+}
+
+/*
  * Return a textual representation of a Dict in "tv".
  * If the memory is allocated "tofree" is set to it, otherwise NULL.
  * When "copyID" is not zero replace recursive dicts with "...".
@@ -6314,6 +6381,10 @@ echo_string_core(
 
 	case VAR_LIST:
 	    r = list_tv2string(tv, tofree, copyID, restore_copyID);
+	    break;
+
+	case VAR_TUPLE:
+	    r = tuple_tv2string(tv, tofree, copyID, restore_copyID);
 	    break;
 
 	case VAR_DICT:
@@ -7255,6 +7326,23 @@ item_copy(
 		to->vval.v_list = list_copy(from->vval.v_list,
 							    deep, top, copyID);
 	    if (to->vval.v_list == NULL)
+		ret = FAIL;
+	    break;
+	case VAR_TUPLE:
+	    to->v_type = VAR_TUPLE;
+	    to->v_lock = 0;
+	    if (from->vval.v_tuple == NULL)
+		to->vval.v_tuple = NULL;
+	    else if (copyID != 0 && from->vval.v_tuple->tv_copyID == copyID)
+	    {
+		// use the copy made earlier
+		to->vval.v_tuple = from->vval.v_tuple->tv_copytuple;
+		++to->vval.v_tuple->tv_refcount;
+	    }
+	    else
+		to->vval.v_tuple = tuple_copy(from->vval.v_tuple,
+							    deep, top, copyID);
+	    if (to->vval.v_tuple == NULL)
 		ret = FAIL;
 	    break;
 	case VAR_BLOB:

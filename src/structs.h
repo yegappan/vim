@@ -73,6 +73,7 @@ typedef struct listvar_S	list_T;
 typedef struct dictvar_S	dict_T;
 typedef struct partial_S	partial_T;
 typedef struct blobvar_S	blob_T;
+typedef struct tuplevar_S	tuple_T;
 
 typedef struct window_S		win_T;
 typedef struct wininfo_S	wininfo_T;
@@ -1511,7 +1512,8 @@ typedef enum
     VAR_INSTR,		// "v_instr" is used
     VAR_CLASS,		// "v_class" is used (also used for interface)
     VAR_OBJECT,		// "v_object" is used
-    VAR_TYPEALIAS	// "v_typealias" is used
+    VAR_TYPEALIAS,	// "v_typealias" is used
+    VAR_TUPLE		// "v_tuple" is used
 } vartype_T;
 
 // A type specification.
@@ -1679,6 +1681,7 @@ struct typval_S
 	class_T		*v_class;	// class value (can be NULL)
 	object_T	*v_object;	// object value (can be NULL)
 	typealias_T	*v_typealias;	// user-defined type name
+	tuple_T		*v_tuple;	// tuple
     }		vval;
 };
 
@@ -1816,6 +1819,21 @@ struct blobvar_S
     garray_T	bv_ga;		// growarray with the data
     int		bv_refcount;	// reference count
     char	bv_lock;	// zero, VAR_LOCKED, VAR_FIXED
+};
+
+/*
+ * Structure to hold info about a tuple.
+ */
+struct tuplevar_S
+{
+    garray_T	tv_items;	// tuple items
+    type_T	*tv_type;	// current type, allocated by alloc_type()
+    tuple_T	*tv_copytuple;	// copied tuple used by deepcopy()
+    tuple_T	*tv_used_next;	// next tuple in used tuples list
+    tuple_T	*tv_used_prev;	// previous tuple in used tuples list
+    int		tv_refcount;	// reference count
+    int		tv_copyID;	// ID used by deepcopy()
+    char	tv_lock;	// zero, VAR_LOCKED, VAR_FIXED
 };
 
 typedef int (*cfunc_T)(int argcount, typval_T *argvars, typval_T *rettv, void *state);
@@ -2819,6 +2837,15 @@ typedef struct list_stack_S
     list_T		*list;
     struct list_stack_S	*prev;
 } list_stack_T;
+
+/*
+ * structure used for explicit stack while garbage collecting tuples
+ */
+typedef struct tuple_stack_S
+{
+    tuple_T			*tuple;
+    struct tuple_stack_S	*prev;
+} tuple_stack_T;
 
 /*
  * Structure used for iterating over dictionary items.

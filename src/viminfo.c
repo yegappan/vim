@@ -1370,7 +1370,7 @@ write_viminfo_varlist(FILE *fp)
 
 			      s = "DIC";
 			      if (di != NULL && !set_ref_in_ht(
-						 &di->dv_hashtab, copyID, NULL)
+					 &di->dv_hashtab, copyID, NULL, NULL)
 				      && di->dv_copyID == copyID)
 				  // has a circular reference, can't turn the
 				  // value into a string
@@ -1384,8 +1384,22 @@ write_viminfo_varlist(FILE *fp)
 
 			      s = "LIS";
 			      if (l != NULL && !set_ref_in_list_items(
-							       l, copyID, NULL)
+						       l, copyID, NULL, NULL)
 				      && l->lv_copyID == copyID)
+				  // has a circular reference, can't turn the
+				  // value into a string
+				  continue;
+			      break;
+			  }
+		    case VAR_TUPLE:
+			  {
+			      tuple_T	*t = this_var->di_tv.vval.v_tuple;
+			      int	copyID = get_copyID();
+
+			      s = "TUP";
+			      if (t != NULL && !set_ref_in_tuple_items(
+						       t, copyID, NULL, NULL)
+				      && t->tv_copyID == copyID)
 				  // has a circular reference, can't turn the
 				  // value into a string
 				  continue;

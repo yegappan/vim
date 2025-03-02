@@ -224,6 +224,7 @@ may_generate_2STRING(int offset, int tostring_flags, cctx_T *cctx)
 
 	// conversion possible when tolerant
 	case VAR_LIST:
+	case VAR_TUPLE:
 	case VAR_DICT:
 			 if (tostring_flags & TOSTRING_TOLERANT)
 			 {

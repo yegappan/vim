@@ -923,7 +923,7 @@ set_ref_in_funcstacks(int copyID)
 	int	    i;
 
 	for (i = 0; i < funcstack->fs_ga.ga_len; ++i)
-	    if (set_ref_in_item(stack + i, copyID, NULL, NULL))
+	    if (set_ref_in_item(stack + i, copyID, NULL, NULL, NULL))
 		return TRUE;  // abort
     }
     return FALSE;
@@ -3066,7 +3066,7 @@ set_ref_in_loopvars(int copyID)
 	int	    i;
 
 	for (i = 0; i < loopvars->lvs_ga.ga_len; ++i)
-	    if (set_ref_in_item(stack + i, copyID, NULL, NULL))
+	    if (set_ref_in_item(stack + i, copyID, NULL, NULL, NULL))
 		return TRUE;  // abort
     }
     return FALSE;
@@ -7790,6 +7790,8 @@ tv2bool(typval_T *tv)
 	    return tv->vval.v_string != NULL && *tv->vval.v_string != NUL;
 	case VAR_LIST:
 	    return tv->vval.v_list != NULL && tv->vval.v_list->lv_len > 0;
+	case VAR_TUPLE:
+	    return tv->vval.v_tuple != NULL && TUPLE_LEN(tv->vval.v_tuple) > 0;
 	case VAR_DICT:
 	    return tv->vval.v_dict != NULL
 				    && tv->vval.v_dict->dv_hashtab.ht_used > 0;

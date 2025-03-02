@@ -2331,8 +2331,8 @@ EXTERN char e_sorry_this_command_is_disabled_the_mzscheme_racket_base_module_cou
 	INIT(= N_("E895: Sorry, this command is disabled, the MzScheme's racket/base module could not be loaded."));
 #endif
 #ifdef FEAT_EVAL
-EXTERN char e_argument_of_str_must_be_list_dictionary_or_blob[]
-	INIT(= N_("E896: Argument of %s must be a List, Dictionary or Blob"));
+EXTERN char e_argument_of_str_must_be_list_tuple_dictionary_or_blob[]
+	INIT(= N_("E896: Argument of %s must be a List, Tuple, Dictionary or Blob"));
 EXTERN char e_list_or_blob_required[]
 	INIT(= N_("E897: List or Blob required"));
 #endif
@@ -3662,3 +3662,17 @@ EXTERN char e_invalid_return_type_from_findfunc[]
 	INIT(= N_("E1514: 'findfunc' did not return a List type"));
 EXTERN char e_str_encoding_failed[]
 	INIT(= N_("E1515: Unable to convert %s '%s' encoding"));
+#ifdef FEAT_EVAL
+EXTERN char e_can_only_compare_tuple_with_tuple[]
+	INIT(= N_("E1516: Can only compare Tuple with Tuple"));
+EXTERN char e_invalid_operation_for_tuple[]
+	INIT(= N_("E1517: Invalid operation for Tuple"));
+EXTERN char e_tuple_index_out_of_range_nr[]
+	INIT(= N_("E1518: Tuple index out of range: %ld"));
+EXTERN char e_using_tuple_as_number[]
+	INIT(= N_("E1519: Using a Tuple as a Number"));
+EXTERN char e_using_tuple_as_float[]
+	INIT(= N_("E1520: Using a Tuple as a Float"));
+EXTERN char e_using_tuple_as_string[]
+	INIT(= N_("E1521: Using a Tuple as a String"));
+#endif
