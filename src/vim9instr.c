@@ -224,6 +224,7 @@ may_generate_2STRING(int offset, int tostring_flags, cctx_T *cctx)
 
 	// conversion possible when tolerant
 	case VAR_LIST:
+	case VAR_TUPLE:
 	case VAR_DICT:
 			 if (tostring_flags & TOSTRING_TOLERANT)
 			 {
@@ -461,6 +462,7 @@ get_compare_isn(
 	    case VAR_STRING: isntype = ISN_COMPARESTRING; break;
 	    case VAR_BLOB: isntype = ISN_COMPAREBLOB; break;
 	    case VAR_LIST: isntype = ISN_COMPARELIST; break;
+	    case VAR_TUPLE: isntype = ISN_COMPARETUPLE; break;
 	    case VAR_DICT: isntype = ISN_COMPAREDICT; break;
 	    case VAR_FUNC: isntype = ISN_COMPAREFUNC; break;
 	    case VAR_OBJECT: isntype = ISN_COMPAREOBJECT; break;
@@ -743,6 +745,11 @@ generate_tv_PUSH(cctx_T *cctx, typval_T *tv)
 	    if (tv->vval.v_list != NULL)
 		iemsg("non-empty list constant not supported");
 	    generate_NEWLIST(cctx, 0, TRUE);
+	    break;
+	case VAR_TUPLE:
+	    if (tv->vval.v_tuple != NULL)
+		iemsg("non-empty tuple constant not supported");
+	    generate_NEWTUPLE(cctx, 0, TRUE);
 	    break;
 	case VAR_DICT:
 	    if (tv->vval.v_dict != NULL)
@@ -1366,6 +1373,37 @@ generate_NEWLIST(cctx_T *cctx, int count, int use_null)
     cctx->ctx_type_stack.ga_len -= count;
 
     // add the list type to the type stack
+    return push_type_stack2(cctx, type, decl_type);
+}
+
+/*
+ * Generate an ISN_NEWTUPLE instruction for "count" items.
+ * "use_null" is TRUE for null_tuple.
+ */
+    int
+generate_NEWTUPLE(cctx_T *cctx, int count, int use_null)
+{
+    isn_T	*isn;
+    type_T	*member_type;
+    type_T	*type;
+    type_T	*decl_type;
+
+    RETURN_OK_IF_SKIP(cctx);
+    if ((isn = generate_instr(cctx, ISN_NEWTUPLE)) == NULL)
+	return FAIL;
+    isn->isn_arg.number = use_null ? -1 : count;
+
+    // Get the member type and the declared member type from all the items on
+    // the stack.
+    if ((member_type = get_member_type_from_stack(count, 1, cctx)) == NULL)
+	return FAIL;
+    type = get_tuple_type(member_type, cctx->ctx_type_list);
+    decl_type = get_tuple_type(&t_any, cctx->ctx_type_list);
+
+    // drop the value types
+    cctx->ctx_type_stack.ga_len -= count;
+
+    // add the tuple type to the type stack
     return push_type_stack2(cctx, type, decl_type);
 }
 
@@ -2754,6 +2792,7 @@ delete_instr(isn_T *isn)
 	case ISN_COMPAREFLOAT:
 	case ISN_COMPAREFUNC:
 	case ISN_COMPARELIST:
+	case ISN_COMPARETUPLE:
 	case ISN_COMPARENR:
 	case ISN_COMPARENULL:
 	case ISN_COMPAREOBJECT:
@@ -2785,6 +2824,8 @@ delete_instr(isn_T *isn)
 	case ISN_LISTAPPEND:
 	case ISN_LISTINDEX:
 	case ISN_LISTSLICE:
+	case ISN_TUPLEINDEX:
+	case ISN_TUPLESLICE:
 	case ISN_LOAD:
 	case ISN_LOADBDICT:
 	case ISN_LOADGDICT:
@@ -2798,6 +2839,7 @@ delete_instr(isn_T *isn)
 	case ISN_NEGATENR:
 	case ISN_NEWDICT:
 	case ISN_NEWLIST:
+	case ISN_NEWTUPLE:
 	case ISN_NEWPARTIAL:
 	case ISN_OPANY:
 	case ISN_OPFLOAT:

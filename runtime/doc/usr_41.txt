@@ -1234,6 +1234,7 @@ Testing:				    *test-functions*
 	test_null_list()	return a null List
 	test_null_partial()	return a null Partial function
 	test_null_string()	return a null String
+	test_null_tuple()	return a null Tuple
 	test_settime()		set the time Vim uses internally
 	test_setmouse()		set the mouse position
 	test_feedinput()	add key sequence to input buffer

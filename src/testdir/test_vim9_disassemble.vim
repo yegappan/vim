@@ -3662,4 +3662,41 @@ def Test_disassemble_using_script_local_var_in_obj_init()
   unlet g:instr
 enddef
 
+" Disassemble the code generating for indexing a tuple
+def Test_disassemble_tuple_indexing()
+  var lines =<< trim END
+    vim9script
+    def Fn(): tuple<number>
+      var t = (5, 6, 7)
+      var i = t[2]
+      var j = t[1 : 2]
+      return t
+    enddef
+    g:instr = execute('disassemble Fn')
+  END
+  v9.CheckScriptSuccess(lines)
+  assert_match('<SNR>\d\+_Fn\_s*' ..
+    'var t = (5, 6, 7)\_s*' ..
+    '0 PUSHNR 5\_s*' ..
+    '1 PUSHNR 6\_s*' ..
+    '2 PUSHNR 7\_s*' ..
+    '3 NEWTUPLE size 3\_s*' ..
+    '4 STORE $0\_s*' ..
+    'var i = t\[2\]\_s*' ..
+    '5 LOAD $0\_s*' ..
+    '6 PUSHNR 2\_s*' ..
+    '7 TUPLEINDEX\_s*' ..
+    '8 STORE $1\_s*' ..
+    'var j = t\[1 : 2\]\_s*' ..
+    '9 LOAD $0\_s*' ..
+    '10 PUSHNR 1\_s*' ..
+    '11 PUSHNR 2\_s*' ..
+    '12 TUPLESLICE\_s*' ..
+    '13 STORE $2\_s*' ..
+    'return t\_s*' ..
+    '14 LOAD $0\_s*' ..
+    '15 RETURN', g:instr)
+  unlet g:instr
+enddef
+
 " vim: ts=8 sw=2 sts=2 expandtab tw=80 fdm=marker
