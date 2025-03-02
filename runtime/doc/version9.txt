@@ -41574,6 +41574,8 @@ Include the "linematch" algorithm for the 'diffopt' setting.  This aligns
 changes between buffers on similar lines improving the diff highlighting in
 Vim
 
+Support for the |Tuple| data type in Vim script and Vim9 script.
+
 							*changed-9.2*
 Changed~
 -------
