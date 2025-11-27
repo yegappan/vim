@@ -3796,4 +3796,12 @@ EXTERN char e_osc_response_timed_out[]
 #ifdef FEAT_EVAL
 EXTERN char e_cannot_add_listener_in_listener_callback[]
 	INIT(= N_("E1569: Cannot use listener_add in a listener callback"));
+EXTERN char e_generic_class_missing_type_args_str[]
+	INIT(= N_("E1570: Type arguments missing for generic class '%s'"));
+EXTERN char e_not_a_generic_class_str[]
+	INIT(= N_("E1571: Not a generic class: %s"));
+EXTERN char e_too_many_types_for_generic_class_str[]
+	INIT(= N_("E1572: Too many types specified for generic class '%s'"));
+EXTERN char e_not_enough_types_for_generic_class_str[]
+	INIT(= N_("E1573: Not enough types specified for generic class '%s'"));
 #endif

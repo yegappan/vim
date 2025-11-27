@@ -3166,7 +3166,8 @@ compile_expr8(char_u **arg, cctx_T *cctx, ppconst_T *ppconst)
     if (**arg == '<' && eval_isnamec1((*arg)[1]))
     {
 	++*arg;
-	want_type = parse_type(arg, cctx->ctx_type_list, cctx->ctx_ufunc, cctx, TRUE);
+	want_type = parse_type(arg, cctx->ctx_type_list, cctx->ctx_ufunc, NULL,
+								cctx, TRUE);
 	if (want_type == NULL)
 	    return FAIL;
 

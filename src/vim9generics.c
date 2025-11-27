@@ -305,7 +305,8 @@ parse_generic_func_type_args(
 	}
 
 	// parse the type
-	type_arg = parse_type(&p, &gfatab->gfat_arg_types, NULL, cctx, TRUE);
+	type_arg = parse_type(&p, &gfatab->gfat_arg_types, NULL, NULL, cctx,
+									TRUE);
 	if (type_arg == NULL || !valid_declaration_type(type_arg))
 	    return NULL;
 
@@ -1218,6 +1219,14 @@ find_generic_type_in_cctx(char_u *gt_name, size_t name_len, cctx_T *cctx)
     if (type != NULL)
 	return type;
 
+    if (cctx->ctx_ufunc->uf_class != NULL)
+    {
+	type = find_generic_type_in_class(gt_name, name_len,
+						cctx->ctx_ufunc->uf_class);
+	if (type != NULL)
+	    return type;
+    }
+
     if (cctx->ctx_outer != NULL)
 	return find_generic_type_in_cctx(gt_name, name_len, cctx->ctx_outer);
 
@@ -1244,6 +1253,7 @@ find_generic_type(
     char_u	*gt_name,
     size_t	name_len,
     ufunc_T	*ufunc,
+    class_T	*cl,
     cctx_T	*cctx)
 {
     if (ufunc != NULL)
@@ -1251,7 +1261,17 @@ find_generic_type(
 	type_T *type = find_generic_type_in_ufunc(gt_name, name_len, ufunc);
 	if (type != NULL)
 	    return type;
+
+	if (ufunc->uf_class != NULL)
+	{
+	    type = find_generic_type_in_class(gt_name, name_len, ufunc->uf_class);
+	    if (type != NULL)
+		return type;
+	}
     }
+
+    if (cl != NULL)
+	return find_generic_type_in_class(gt_name, name_len, cl);
 
     if (cctx != NULL && ufunc != cctx->ctx_ufunc)
 	return find_generic_type_in_cctx(gt_name, name_len, cctx);

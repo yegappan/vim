@@ -14,6 +14,6 @@ ufunc_T *eval_generic_func(ufunc_T *ufunc, char_u *name, char_u **argp);
 int generic_func_call(char_u **argp);
 ufunc_T *generic_func_get(ufunc_T *fp, gfargs_tab_T *gfatab);
 ufunc_T *find_generic_func(ufunc_T *ufunc, char_u *name, char_u **argp);
-type_T *find_generic_type(char_u *gt_name, size_t name_len, ufunc_T *ufunc, cctx_T *cctx);
+type_T *find_generic_type(char_u *gt_name, size_t name_len, ufunc_T *ufunc, class_T *cl, cctx_T *cctx);
 void generic_func_clear_items(ufunc_T *fp);
 /* vim: set ft=c : */

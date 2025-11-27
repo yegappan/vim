@@ -1623,7 +1623,7 @@ parse_type_member(
     }
     *arg = skipwhite(*arg + 1);
 
-    member_type = parse_type(arg, type_gap, ufunc, cctx, give_error);
+    member_type = parse_type(arg, type_gap, ufunc, NULL, cctx, give_error);
     if (member_type == NULL || !valid_declaration_type(member_type))
 	return NULL;
 
@@ -1693,7 +1693,7 @@ parse_type_func(
 		return NULL;
 	    }
 
-	    type = parse_type(&p, type_gap, ufunc, cctx, give_error);
+	    type = parse_type(&p, type_gap, ufunc, NULL, cctx, give_error);
 	    if (type == NULL || !valid_declaration_type(type))
 		return NULL;
 	    if ((flags & TTFLAG_VARARGS) != 0 && type->tt_type != VAR_LIST)
@@ -1753,7 +1753,7 @@ parse_type_func(
 	if (!VIM_ISWHITE(**arg) && give_error)
 	    semsg(_(e_white_space_required_after_str_str), ":", *arg - 1);
 	*arg = skipwhite(*arg);
-	ret_type = parse_type(arg, type_gap, ufunc, cctx, give_error);
+	ret_type = parse_type(arg, type_gap, ufunc, NULL, cctx, give_error);
 	if (ret_type == NULL)
 	    return NULL;
     }
@@ -1825,7 +1825,7 @@ parse_type_tuple(
 	    p += 3;
 	}
 
-	type = parse_type(&p, type_gap, ufunc, cctx, give_error);
+	type = parse_type(&p, type_gap, ufunc, NULL, cctx, give_error);
 	if (type == NULL || !valid_declaration_type(type))
 	    goto on_err;
 
@@ -1929,7 +1929,7 @@ parse_type_object(
     // skip spaces following "object<"
     *arg = skipwhite(*arg + 1);
 
-    object_type = parse_type(arg, type_gap, NULL, cctx, give_error);
+    object_type = parse_type(arg, type_gap, NULL, NULL, cctx, give_error);
     if (object_type == NULL)
 	return NULL;
 
@@ -1968,6 +1968,7 @@ parse_type_user_defined(
     garray_T	*type_gap,
     int		give_error,
     ufunc_T	*ufunc,
+    class_T	*cl,
     cctx_T	*cctx)
 {
     int		did_emsg_before = did_emsg;
@@ -1978,6 +1979,31 @@ parse_type_user_defined(
     {
 	if (tv.v_type == VAR_CLASS && tv.vval.v_class != NULL)
 	{
+	    if (IS_GENERIC_CLASS(tv.vval.v_class))
+	    {
+		// generic class
+		if (*(*arg + len) != '<')
+		{
+		    semsg(_(e_generic_class_missing_type_args_str),
+			    tv.vval.v_class->class_name);
+		    clear_tv(&tv);
+		    return NULL;
+		}
+
+		// Find the generic class
+		*arg += len;
+		len = 0;
+		class_T *new_cl = find_generic_class(tv.vval.v_class, arg);
+		if (new_cl == NULL)
+		{
+		    clear_tv(&tv);
+		    return NULL;
+		}
+		class_unref(tv.vval.v_class);
+		tv.vval.v_class = new_cl;
+		new_cl->class_refcount++;
+	    }
+
 	    type_T *type = get_type_ptr(type_gap);
 	    if (type != NULL)
 	    {
@@ -2011,7 +2037,7 @@ parse_type_user_defined(
     }
 
     // Check whether it is a generic type
-    type_T *type = find_generic_type(*arg, len, ufunc, cctx);
+    type_T *type = find_generic_type(*arg, len, ufunc, cl, cctx);
     if (type != NULL)
     {
 	*arg += len;
@@ -2041,6 +2067,7 @@ parse_type(
     char_u	**arg,
     garray_T	*type_gap,
     ufunc_T	*ufunc,
+    class_T	*cl,
     cctx_T	*cctx,
     int		give_error)
 {
@@ -2155,7 +2182,7 @@ parse_type(
 
     // User defined type
     return parse_type_user_defined(arg, len, type_gap, give_error, ufunc,
-									cctx);
+								cl, cctx);
 }
 
 /*
