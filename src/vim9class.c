@@ -1998,6 +1998,7 @@ generic_class_args_table_size(gfargs_tab_T *gfatab)
 
     static int
 clone_oc_vars(
+    class_T	*new_cl,
     ocmember_T	*cl_members,
     int		cl_member_count,
     ocmember_T	**new_cl_members,
@@ -2019,6 +2020,8 @@ clone_oc_vars(
 
 	    *new_m = *m;
 	    new_m->ocm_name = vim_strsave(m->ocm_name);
+	    new_m->ocm_type = copy_type_deep(m->ocm_type,
+						&new_cl->class_type_list);
 	    if (m->ocm_init != NULL)
 		new_m->ocm_init = vim_strsave(m->ocm_init);
 	}
@@ -2260,13 +2263,13 @@ clone_class(class_T *cl, size_t extra_namelen)
     }
 
     // Copy the object and class variables
-    if (clone_oc_vars(cl->class_class_members,
+    if (clone_oc_vars(new_cl, cl->class_class_members,
 		cl->class_class_member_count,
 		&new_cl->class_class_members,
 		&new_cl->class_class_member_count) == FAIL)
 	goto fail;
 
-    if (clone_oc_vars(cl->class_obj_members,
+    if (clone_oc_vars(new_cl, cl->class_obj_members,
 		cl->class_obj_member_count,
 		&new_cl->class_obj_members,
 		&new_cl->class_obj_member_count) == FAIL)
@@ -2276,20 +2279,16 @@ clone_class(class_T *cl, size_t extra_namelen)
     if (cl->class_class_member_count)
     {
 	new_cl->class_members_tv = ALLOC_CLEAR_MULT(typval_T,
-						cl->class_class_member_count);
+		cl->class_class_member_count);
 	if (new_cl->class_members_tv == NULL)
 	    goto fail;
-    }
 
-    for (i = 0; i < cl->class_class_member_count; i++)
-    {
-	if (copy_tv(&cl->class_members_tv[i], &new_cl->class_members_tv[i])
-								== FAIL)
-	    goto fail;
-
-	new_cl->class_class_members[i].ocm_type =
-	    copy_type(new_cl->class_class_members[i].ocm_type,
-		    &new_cl->class_type_list);
+	for (i = 0; i < cl->class_class_member_count; i++)
+	{
+	    if (copy_tv(&cl->class_members_tv[i], &new_cl->class_members_tv[i])
+		    == FAIL)
+		goto fail;
+	}
     }
 
     if (clone_oc_methods(cl, new_cl) == FAIL)
@@ -2310,6 +2309,117 @@ clone_class(class_T *cl, size_t extra_namelen)
 fail:
     class_free(new_cl);
     return NULL;
+}
+
+    static int
+class_get_generic_type_index(class_T *cl, type_T *t)
+{
+    for (int i = 0; i < cl->class_generic_argcount; i++)
+    {
+	if (&cl->class_generic_param_types[i] == t)
+	    return i;
+    }
+    return -1;
+}
+
+    static void
+class_update_generic_type(
+    class_T	*cl,
+    class_T	*new_cl,
+    type_T	*generic_type,
+    type_T	**specific_type,
+    type_T	**func_type)
+{
+    int	idx;
+
+    switch (generic_type->tt_type)
+    {
+	case VAR_ANY:
+	    idx = class_get_generic_type_index(cl, generic_type);
+	    if (idx != -1)
+	    {
+		*specific_type = new_cl->class_generic_args[idx].gt_type;
+		if (func_type != NULL)
+		    *func_type = new_cl->class_generic_args[idx].gt_type;
+	    }
+	    break;
+	case VAR_LIST:
+	case VAR_DICT:
+	    class_update_generic_type(cl, new_cl,
+		    generic_type->tt_member,
+		    &(*specific_type)->tt_member,
+		    func_type != NULL ? &(*func_type)->tt_member : NULL);
+	    break;
+	case VAR_TUPLE:
+	    for (int i = 0; i < generic_type->tt_argcount; i++)
+		class_update_generic_type(cl, new_cl,
+			generic_type->tt_args[i],
+			&(*specific_type)->tt_args[i],
+			func_type != NULL ? &(*func_type)->tt_args[i] : NULL);
+	    break;
+	case VAR_FUNC:
+	    for (int i = 0; i < generic_type->tt_argcount; i++)
+		class_update_generic_type(cl, new_cl,
+			generic_type->tt_args[i],
+			&(*specific_type)->tt_args[i],
+			func_type != NULL ? &(*func_type)->tt_args[i] : NULL);
+	    class_update_generic_type(cl, new_cl,
+		    generic_type->tt_member,
+		    &(*specific_type)->tt_member,
+		    func_type != NULL ? &(*func_type)->tt_member : NULL);
+	    break;
+	default:
+	    break;
+    }
+}
+
+    static void
+update_oc_method_generic_types(
+    class_T	*cl,
+    class_T	*new_cl,
+    ufunc_T	*fp,
+    ufunc_T	*new_fp)
+{
+    int		i;
+
+    // create a copy of
+    // - all the argument types
+    // - return type
+    // - vararg type
+    // - function type
+    // if any generic type is used, it will be replaced below).
+    for (i = 0; i < fp->uf_args.ga_len; i++)
+	new_fp->uf_arg_types[i] = copy_type_deep(fp->uf_arg_types[i],
+						&new_fp->uf_type_list);
+
+    if (fp->uf_ret_type != NULL)
+	new_fp->uf_ret_type = copy_type_deep(fp->uf_ret_type,
+						&new_fp->uf_type_list);
+
+    if (fp->uf_va_type != NULL)
+	new_fp->uf_va_type = copy_type_deep(fp->uf_va_type,
+						&new_fp->uf_type_list);
+
+    if (fp->uf_func_type != NULL)
+	new_fp->uf_func_type = copy_type_deep(fp->uf_func_type,
+						&new_fp->uf_type_list);
+
+    // Update any generic types in the function arguments
+    for (i = 0; i < fp->uf_args.ga_len; i++)
+	class_update_generic_type(cl, new_cl, fp->uf_arg_types[i],
+					&new_fp->uf_arg_types[i],
+					&new_fp->uf_func_type->tt_args[i]);
+
+    // Update the vararg type if it uses generic types
+    if (fp->uf_va_type != NULL)
+	class_update_generic_type(cl, new_cl, fp->uf_va_type,
+						&new_fp->uf_va_type, NULL);
+
+    // Update the return type if it is a generic type
+    if (fp->uf_ret_type != NULL)
+	class_update_generic_type(cl, new_cl, fp->uf_ret_type,
+					&new_fp->uf_ret_type,
+					&new_fp->uf_func_type->tt_member);
 }
 
     static class_T *
@@ -2360,6 +2470,44 @@ generic_class_add(class_T *cl, char_u *key, gfargs_tab_T *gfatab)
 	generic_arg = (generic_T *)gfatab->gfat_args.ga_data + i;
 	generic_T *gt = &new_cl->class_generic_args[i];
 	gt->gt_type = generic_arg->gt_type;
+    }
+
+    // Update the generic types (if any) in the class variables
+    for (i = 0; i < cl->class_class_member_count; i++)
+    {
+	ocmember_T *m = cl->class_class_members + i;
+	ocmember_T *new_m = new_cl->class_class_members + i;
+
+	class_update_generic_type(cl, new_cl, m->ocm_type, &new_m->ocm_type,
+									NULL);
+    }
+
+    // Update the generic types (if any) in the object variables
+    for (i = 0; i < cl->class_obj_member_count; i++)
+    {
+	ocmember_T *m = cl->class_obj_members + i;
+	ocmember_T *new_m = new_cl->class_obj_members + i;
+
+	class_update_generic_type(cl, new_cl, m->ocm_type, &new_m->ocm_type,
+									NULL);
+    }
+
+    // Update the generic types (if any) in the class methods
+    for (i = 0; i < cl->class_class_function_count; i++)
+    {
+	ufunc_T *fp = cl->class_class_functions[i];
+	ufunc_T *new_fp = new_cl->class_class_functions[i];
+
+	update_oc_method_generic_types(cl, new_cl, fp, new_fp);
+    }
+
+    // Update the generic types (if any) in the object methods
+    for (i = 0; i < cl->class_obj_method_count; i++)
+    {
+	ufunc_T *fp = cl->class_obj_methods[i];
+	ufunc_T *new_fp = new_cl->class_obj_methods[i];
+
+	update_oc_method_generic_types(cl, new_cl, fp, new_fp);
     }
 
     hash_add_item(ht, hi, gcitem->gci_name, hash);

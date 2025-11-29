@@ -1604,6 +1604,7 @@ parse_type_member(
 	int	    give_error,
 	char	    *info,
 	ufunc_T	    *ufunc,
+	class_T	    *cl,
 	cctx_T	    *cctx)
 {
     char_u  *arg_start = *arg;
@@ -1623,7 +1624,7 @@ parse_type_member(
     }
     *arg = skipwhite(*arg + 1);
 
-    member_type = parse_type(arg, type_gap, ufunc, NULL, cctx, give_error);
+    member_type = parse_type(arg, type_gap, ufunc, cl, cctx, give_error);
     if (member_type == NULL || !valid_declaration_type(member_type))
 	return NULL;
 
@@ -2113,7 +2114,7 @@ parse_type(
 		*arg += len;
 		return parse_type_member(arg, &t_dict_any, type_gap,
 						give_error, "dict", ufunc,
-						cctx);
+						cl, cctx);
 	    }
 	    break;
 	case 'f':
@@ -2139,7 +2140,7 @@ parse_type(
 		*arg += len;
 		return parse_type_member(arg, &t_list_any, type_gap,
 						give_error, "list", ufunc,
-						cctx);
+						cl, cctx);
 	    }
 	    break;
 	case 'n':
