@@ -3968,7 +3968,7 @@ call_func(
     // even when call_func() returns FAIL.
     rettv->v_type = VAR_UNKNOWN;
 
-    generic_func_args_table_init(&gfatab);
+    generic_args_table_init(&gfatab);
 
     if (partial != NULL)
 	fp = partial->pt_func;
@@ -3984,7 +3984,7 @@ call_func(
 	    if (p != NULL)
 	    {
 		len = p - funcname;
-		if (parse_generic_func_type_args(funcname, len, p, &gfatab,
+		if (parse_generic_type_args(funcname, len, p, &gfatab,
 						funcexe->fe_cctx) == NULL)
 		    goto theend;
 	    }
@@ -4114,7 +4114,7 @@ call_func(
 		    goto theend;
 		}
 	    }
-	    else if (generic_func_args_table_size(&gfatab) > 0)
+	    else if (generic_args_table_size(&gfatab) > 0)
 	    {
 		emsg_funcname(fp != NULL ? e_not_a_generic_function_str
 				: e_unknown_generic_function_str, rfname);
@@ -4210,7 +4210,7 @@ theend:
 
     vim_free(tofree);
     vim_free(name);
-    generic_func_args_table_clear(&gfatab);
+    generic_args_table_clear(&gfatab);
 
     return ret;
 }
@@ -5096,7 +5096,7 @@ define_function(
     ga_init(&argtypes);
     ga_init(&arg_objm);
     ga_init(&default_args);
-    generic_func_args_table_init(&gfatab);
+    generic_args_table_init(&gfatab);
 
     /*
      * Get the function name.  There are these situations:
@@ -5206,7 +5206,7 @@ define_function(
     if (vim9script && eap->cmdidx == CMD_def && *p == '<')
     {
 	// generic function
-	p = parse_generic_func_type_params(name, p, &gfatab, cctx);
+	p = parse_generic_type_params(name, p, &gfatab, cctx);
 	if (p == NULL)
 	    goto ret_free;
     }
@@ -5640,7 +5640,7 @@ define_function(
 
 	fp->uf_def_status = UF_TO_BE_COMPILED;
 
-	if (generic_func_args_table_size(&gfatab) > 0)
+	if (generic_args_table_size(&gfatab) > 0)
 	{
 	    // initialize generic function state
 	    flags |= FC_GENERIC;
@@ -5773,7 +5773,7 @@ ret_free:
     // The generic types are still in use and should not be freed.  Instead
     // clear the grow array.
     ga_clear(&gfatab.gfat_param_types);
-    generic_func_args_table_clear(&gfatab);
+    generic_args_table_clear(&gfatab);
     vim_free(fudi.fd_newkey);
     if (name != name_arg)
 	vim_free(name);

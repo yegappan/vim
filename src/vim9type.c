@@ -1654,6 +1654,7 @@ parse_type_func(
     garray_T	*type_gap,
     int		give_error,
     ufunc_T	*ufunc,
+    class_T	*cl,
     cctx_T	*cctx)
 {
     char_u  *p;
@@ -1694,7 +1695,7 @@ parse_type_func(
 		return NULL;
 	    }
 
-	    type = parse_type(&p, type_gap, ufunc, NULL, cctx, give_error);
+	    type = parse_type(&p, type_gap, ufunc, cl, cctx, give_error);
 	    if (type == NULL || !valid_declaration_type(type))
 		return NULL;
 	    if ((flags & TTFLAG_VARARGS) != 0 && type->tt_type != VAR_LIST)
@@ -1754,7 +1755,7 @@ parse_type_func(
 	if (!VIM_ISWHITE(**arg) && give_error)
 	    semsg(_(e_white_space_required_after_str_str), ":", *arg - 1);
 	*arg = skipwhite(*arg);
-	ret_type = parse_type(arg, type_gap, ufunc, NULL, cctx, give_error);
+	ret_type = parse_type(arg, type_gap, ufunc, cl, cctx, give_error);
 	if (ret_type == NULL)
 	    return NULL;
     }
@@ -1789,6 +1790,7 @@ parse_type_tuple(
     garray_T	*type_gap,
     int		give_error,
     ufunc_T	*ufunc,
+    class_T	*cl,
     cctx_T	*cctx)
 {
     char_u	*p;
@@ -1826,7 +1828,7 @@ parse_type_tuple(
 	    p += 3;
 	}
 
-	type = parse_type(&p, type_gap, ufunc, NULL, cctx, give_error);
+	type = parse_type(&p, type_gap, ufunc, cl, cctx, give_error);
 	if (type == NULL || !valid_declaration_type(type))
 	    goto on_err;
 
@@ -2125,7 +2127,7 @@ parse_type(
 	    }
 	    if (len == 4 && STRNCMP(*arg, "func", len) == 0)
 		return parse_type_func(arg, len, type_gap, give_error, ufunc,
-									cctx);
+								cl, cctx);
 	    break;
 	case 'j':
 	    if (len == 3 && STRNCMP(*arg, "job", len) == 0)
@@ -2168,7 +2170,7 @@ parse_type(
 	    if (len == 5 && STRNCMP(*arg, "tuple", len) == 0)
 	    {
 		*arg += len;
-		return parse_type_tuple(arg, type_gap, give_error, ufunc,
+		return parse_type_tuple(arg, type_gap, give_error, ufunc, cl,
 									cctx);
 	    }
 	    break;

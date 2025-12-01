@@ -2598,9 +2598,9 @@ find_generic_class(class_T *cl, char_u **argp)
     char_u		*p;
     class_T		*new_cl = NULL;
 
-    generic_func_args_table_init(&gfatab);
+    generic_args_table_init(&gfatab);
 
-    p = parse_generic_func_type_args(cl->class_name, STRLEN(cl->class_name),
+    p = parse_generic_type_args(cl->class_name, STRLEN(cl->class_name),
 							*argp, &gfatab, NULL);
     if (p != NULL)
     {
@@ -2608,7 +2608,7 @@ find_generic_class(class_T *cl, char_u **argp)
 	*argp = p;
     }
 
-    generic_func_args_table_clear(&gfatab);
+    generic_args_table_clear(&gfatab);
 
     return new_cl;
 }
@@ -2676,18 +2676,21 @@ ex_class(exarg_T *eap)
     }
     char_u *name_start = arg;
 
-    generic_func_args_table_init(&gfatab);
+    generic_args_table_init(&gfatab);
 
     if (*name_end == '<')
     {
 	// generic class
-	arg =
-	    parse_generic_func_type_params(name_start, name_end, &gfatab, NULL);
+	arg = parse_generic_type_params(name_start, name_end, &gfatab, NULL);
 	if (arg == NULL)
+	{
+	    generic_args_table_clear(&gfatab);
 	    return;
+	}
 	if (!IS_WHITE_OR_NUL(*arg))
 	{
 	    semsg(_(e_white_space_required_after_name_str), arg);
+	    generic_args_table_clear(&gfatab);
 	    return;
 	}
 	is_generic = TRUE;
@@ -2793,7 +2796,10 @@ ex_class(exarg_T *eap)
 	}
 	else
 	{
-	    semsg(_(e_trailing_characters_str), arg);
+	    if (*skipwhite(arg) == '<')
+		semsg(_(e_no_white_space_allowed_before_str_str), "<", arg);
+	    else
+		semsg(_(e_trailing_characters_str), arg);
 early_ret:
 	    vim_free(extends);
 	    ga_clear_strings(&ga_impl);
@@ -3933,7 +3939,7 @@ class_object_index(
 
     gfargs_tab_T    gfatab;
 
-    generic_func_args_table_init(&gfatab);
+    generic_args_table_init(&gfatab);
 
     if (*name_end == '<')
     {
@@ -3943,8 +3949,8 @@ class_object_index(
 	    cctx = evalarg->eval_cctx;
 
 	// calling a generic method
-	name_end = parse_generic_func_type_args(name, len, name + len,
-						&gfatab, cctx);
+	name_end = parse_generic_type_args(name, len, name + len, &gfatab,
+									cctx);
 	if (name_end == NULL)
 	    goto done;
     }
@@ -3991,7 +3997,7 @@ class_object_index(
     }
 
 done:
-    generic_func_args_table_clear(&gfatab);
+    generic_args_table_clear(&gfatab);
 
     return ret;
 }

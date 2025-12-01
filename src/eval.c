@@ -5059,7 +5059,7 @@ eval9_nested_expr(
 }
 
 /*
-* Handle be a variable or function name.
+* Handle a variable or function name.
 * Can also be a curly-braces kind of name: {expr}.
 */
     static int
@@ -7542,7 +7542,7 @@ handle_subscript(
 	    }
 	}
 	else if (**arg == '<' && (rettv->v_type == VAR_CLASS
-					       || rettv->v_type == VAR_OBJECT))
+					|| rettv->v_type == VAR_OBJECT))
 	{
 	    class_T	*cl = NULL;
 
