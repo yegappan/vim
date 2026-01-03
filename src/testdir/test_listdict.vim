@@ -1657,4 +1657,105 @@ def Test_id_with_dict()
   assert_equal('', id(null_channel))
   assert_equal('', id(null_job))
 enddef
+
+" Test for adding an item to a List with type list<any> by using the list
+" length as the index
+def Test_list_length_as_index()
+  # Append a new item to a list (vim9script)
+  var lines =<< trim END
+    var l = []
+    l[0] = 'abc'
+    assert_equal(['abc'], l)
+  END
+  v9.CheckDefAndScriptSuccess(lines)
+
+  # Type check when adding a new item
+  lines =<< trim END
+    var l: list<string>
+    l[0] = 10
+  END
+  v9.CheckDefAndScriptFailure(lines, 'E1012: Type mismatch; expected string but got number', 2)
+
+  # In legacy script, appending a new item to a list should fail.
+  lines =<< trim END
+    let l = []
+    let l[0] = 'abc'
+  END
+  v9.CheckLegacyFailure(lines, 'E684: List index out of range: 0')
+
+  # Append a new item to a dict which is part of another list
+  lines =<< trim END
+    var inner: dict<string> = {}
+    var outer: list<any> = [inner]
+
+    outer[0] = {a: 'xxx'}
+    assert_equal([{'a': 'xxx'}], outer)
+  END
+  v9.CheckDefAndScriptSuccess(lines)
+
+  # Append a new item to a list which is part of another tuple
+  lines =<< trim END
+    var inner: list<string>
+    var outer: tuple<any> = (inner,)
+
+    outer[0][0] = 'aaa'
+    assert_equal((['aaa'],), outer)
+  END
+  v9.CheckDefAndScriptSuccess(lines)
+
+  # Append a new item to a list which is part of another list
+  lines =<< trim END
+    var inner: list<dict<string>>
+    var outer: list<any> = [inner]
+
+    outer[0][0] = {a: ''}
+    assert_equal([[{'a': ''}]], outer)
+  END
+  v9.CheckDefAndScriptSuccess(lines)
+
+  # Type check
+  lines =<< trim END
+    var inner: list<dict<string>>
+    var outer: list<any> = [inner]
+    outer[0][0] = {a: 0z10}
+  END
+  v9.CheckDefExecAndScriptFailure(lines, 'E1012: Type mismatch; expected dict<string> but got dict<blob>', 3)
+
+  # In legacy script, appending a new item to a list which is part of another
+  # list should fail.
+  lines =<< trim END
+    let inner = []
+    let outer = [inner]
+
+    let outer[0][0] = {'a': ''}
+  END
+  v9.CheckLegacyFailure(lines, 'E684: List index out of range: 0')
+
+  # appending an item to a nested list
+  lines =<< trim END
+    var inner: list<list<dict<string>>>
+    var outer: list<any> = [inner]
+
+    outer[0][0][0] = {a: 'abc'}
+    assert_equal([[[{'a': 'abc'}]]], outer)
+  END
+  v9.CheckDefAndScriptSuccess(lines)
+
+  # type check
+  lines =<< trim END
+    var inner: list<list<dict<string>>>
+    var outer: list<any> = [inner]
+    outer[0][0][0] = {a: 0z10}
+  END
+  v9.CheckDefExecAndScriptFailure(lines, 'E1012: Type mismatch; expected dict<string> but got dict<blob>', 3)
+
+  # legacy script
+  lines =<< trim END
+    let inner = [[]]
+    let outer = [inner]
+    let outer[0][0][0] = {'a': 'abc'}
+  END
+  v9.CheckLegacyFailure(lines, 'E684: List index out of range: 0')
+enddef
+
 " vim: shiftwidth=2 sts=2 expandtab

@@ -1126,7 +1126,7 @@ def Test_modifier_silent_unsilent()
   assert_equal("\nthere", execute(':1messages'))
 
   try
-    silent eval [][0]
+    silent eval [][1]
   catch
     echomsg "caught"
   endtry

@@ -3299,7 +3299,7 @@ def Test_failure_in_called_function()
   # this was using the frame index as the return value
   var lines =<< trim END
       vim9script
-      au TerminalWinOpen * eval [][0]
+      au TerminalWinOpen * eval [][1]
       def PopupTerm(a: any)
         # make sure typvals on stack are string
         ['a', 'b', 'c', 'd', 'e', 'f', 'g']->join()
@@ -3660,7 +3660,7 @@ def Test_ignore_silent_error_in_filter()
       vim9script
       def Filter(winid: number, key: string): bool
           if key == 'o'
-              silent! eval [][0]
+              silent! eval [][1]
               return true
           endif
           return popup_filter_menu(winid, key)
@@ -3827,7 +3827,7 @@ enddef
 
 def StackBot()
   # throw an error
-  eval [][0]
+  eval [][1]
 enddef
 
 def Test_callstack_def()
@@ -3879,7 +3879,7 @@ def Test_did_emsg_reset()
       au BufWinLeave * #
       def Func()
           popup_menu('', {callback: (a, b) => popup_create('', {})->popup_close()})
-          eval [][0]
+          eval [][1]
       enddef
       nno <F3> <cmd>call <sid>Func()<cr>
       feedkeys("\<F3>\e", 'xt')
@@ -3969,7 +3969,7 @@ def Test_cmdmod_silent_nested()
 
       def Error()
           result ..= 'Eb'
-          eval [][0]
+          eval [][1]
           result ..= 'Ea'
       enddef
 
@@ -4048,7 +4048,7 @@ def Run_Test_opfunc_error()
 
       def Opfunc(type: string)
         try
-          eval [][0]
+          eval [][1]
         catch /nothing/  # error not caught
         endtry
       enddef
@@ -4065,7 +4065,7 @@ def Run_Test_opfunc_error()
 
   var buf = g:RunVimInTerminal('-S XTest_opfunc_error', {rows: 6, wait_for_ruler: 0})
   g:WaitForAssert(() => assert_match('Press ENTER', term_getline(buf, 6)))
-  g:WaitForAssert(() => assert_match('E684: List index out of range: 0', term_getline(buf, 5)))
+  g:WaitForAssert(() => assert_match('E684: List index out of range: 1', term_getline(buf, 5)))
 
   # clean up
   g:StopVimInTerminal(buf)

@@ -701,7 +701,7 @@ def Test_try_catch_throw()
 
   var n: number
   try
-    n = l[3]
+    n = l[4]
   catch /E684:/
     n = 99
   endtry
@@ -907,7 +907,7 @@ def Test_try_catch_throw()
   var counter = 0
   for i in range(4)
     try
-      eval [][0]
+      eval [][1]
     catch
     endtry
     counter += 1
@@ -1030,7 +1030,7 @@ def Test_try_catch_throw()
       catch
         assert_match('E492:', v:exception)
       endtry
-      eval [][0] # normal exception inside catch block
+      eval [][1] # normal exception inside catch block
     endtry
   catch
     assert_match('E684:', v:exception)
@@ -1186,13 +1186,13 @@ def Test_try_in_catch()
       def DoIt()
         try
           seq->add('throw 1')
-          eval [][0]
+          eval [][1]
           seq->add('notreached')
         catch
           seq->add('catch')
           try
             seq->add('throw 2')
-            eval [][0]
+            eval [][1]
             seq->add('notreached')
           catch /nothing/
             seq->add('notreached')
@@ -1208,9 +1208,9 @@ enddef
 def Test_error_in_catch()
   var lines =<< trim END
       try
-        eval [][0]
+        eval [][1]
       catch /E684:/
-        eval [][0]
+        eval [][1]
       endtry
   END
   v9.CheckDefExecFailure(lines, 'E684:', 4)
@@ -1249,7 +1249,7 @@ def Test_break_in_try_in_for()
         for s in ['abc', 'def']
           for _ in [123, 456]
             try
-              eval [][0]
+              eval [][1]
             catch
               break
             endtry
@@ -1593,7 +1593,7 @@ def Test_error_in_nested_function()
         g:test_var = 1
       enddef
       func Error() abort
-        eval [][0]
+        eval [][1]
       endfunc
       Func()
   END
@@ -1871,7 +1871,7 @@ def Test_func_redefine_error()
   var lines = [
         'vim9script',
         'def Func()',
-        '  eval [][0]',
+        '  eval [][1]',
         'enddef',
         'Func()',
         ]
@@ -3179,7 +3179,7 @@ def Test_for_loop_with_try_continue()
       for i in range(3)
         looped += 1
         try
-          eval [][0]
+          eval [][1]
         catch
           continue
         finally
@@ -4182,7 +4182,7 @@ def Test_error_in_autoload_script_foldexpr()
 
   var lines =<< trim END
       vim9script
-      eval [][0]
+      eval [][1]
       echomsg 'no error'
   END
   lines->writefile('Xvim/autoload/script.vim')
@@ -4194,7 +4194,7 @@ def Test_error_in_autoload_script_foldexpr()
       &foldexpr = 'script.Func()'
       redraw
   END
-  v9.CheckScriptFailure(lines, 'E684: List index out of range: 0')
+  v9.CheckScriptFailure(lines, 'E684: List index out of range: 1')
 enddef
 
 def Test_invalid_sid()
@@ -4519,7 +4519,7 @@ def Test_no_unknown_error_after_error()
       vim9script
       var source: list<number>
       def Out_cb(...l: list<any>)
-          eval [][0]
+          eval [][1]
       enddef
       def Exit_cb(...l: list<any>)
           sleep 1m

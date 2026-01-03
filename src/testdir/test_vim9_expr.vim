@@ -2317,7 +2317,7 @@ def Test_expr9_list()
   v9.CheckDefAndScriptFailure(["var x = [1,2,3]"], 'E1069:', 1)
   v9.CheckDefAndScriptFailure(["var x = [1 ,2, 3]"], 'E1068:', 1)
 
-  v9.CheckDefExecAndScriptFailure(["echo 1", "var x = [][0]", "echo 3"], 'E684:', 2)
+  v9.CheckDefExecAndScriptFailure(["echo 1", "var x = [][1]", "echo 3"], 'E684:', 2)
 
   v9.CheckDefExecAndScriptFailure(["var x = g:list_mixed['xx']"], ['E1012:', 'E1030:'], 1)
   v9.CheckDefFailure(["var x = g:list_mixed["], 'E1097:', 3)
@@ -3198,8 +3198,8 @@ def Test_expr9_any_index_slice()
   v9.CheckDefExecAndScriptFailure(['echo g:testblob[2]'], 'E979:', 1)
   v9.CheckDefExecAndScriptFailure(['echo g:testblob[-3]'], 'E979:', 1)
 
-  v9.CheckDefExecAndScriptFailure(['echo g:testlist[4]'], 'E684: List index out of range: 4', 1)
-  v9.CheckDefExecAndScriptFailure(['echo g:testlist[-5]'], 'E684:', 1)
+  v9.CheckDefExecAndScriptFailure(['echo g:testlist[5]'], 'E684: List index out of range: 5', 1)
+  v9.CheckDefExecAndScriptFailure(['echo g:testlist[-6]'], 'E684:', 1)
 
   v9.CheckDefExecAndScriptFailure(['echo g:testdict["a" : "b"]'], 'E719:', 1)
   v9.CheckDefExecAndScriptFailure(['echo g:testdict[1]'], 'E716:', 1)
