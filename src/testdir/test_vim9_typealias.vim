@@ -2196,6 +2196,59 @@ def Test_typealias_refcount()
   v9.CheckScriptSuccess(lines)
 enddef
 
+" Test for using a type alias that is kept after the script defining it is
+" sourced again.  Using freed memory is only detected with valgrind or ASAN.
+def Test_typealias_kept_after_reload()
+  var lines =<< trim END
+    vim9script
+    type A = list<dict<list<string>>>
+    type FT = func(list<string>, ...list<number>): dict<number>
+    if !exists('g:TypeAliasVars')
+      var sid = str2nr(matchstr(expand('<SID>'), '\d\+'))
+      g:TypeAliasVars = getscriptinfo({sid: sid})[0].variables
+    endif
+  END
+  writefile(lines, 'Xtypealiaskept.vim', 'D')
+  source Xtypealiaskept.vim
+  source Xtypealiaskept.vim
+  assert_equal('typealias<list<dict<list<string>>>>',
+               typename(g:TypeAliasVars.A))
+  assert_equal('typealias<func(list<string>, ...list<number>): dict<number>>',
+               typename(g:TypeAliasVars.FT))
+  unlet g:TypeAliasVars
+enddef
+
+" Test for garbage collection of a type alias that is kept after the script
+" defining it is sourced again.  Using freed memory is only detected with
+" valgrind or ASAN.
+func Test_typealias_kept_after_reload_garbagecollect()
+  let lines =<< trim END
+    vim9script
+    type A = list<dict<list<string>>>
+    type FT = func(list<string>): dict<number>
+    if !exists('g:TypeAliasGcVars')
+      var sid = str2nr(matchstr(expand('<SID>'), '\d\+'))
+      g:TypeAliasGcVars = getscriptinfo({sid: sid})[0].variables
+      g:TypeAliasGcVars.self = g:TypeAliasGcVars
+    endif
+  END
+  call writefile(lines, 'Xtypealiaskeptgc.vim', 'D')
+
+  let lines =<< trim END
+    vim9script
+    source Xtypealiaskeptgc.vim
+    source Xtypealiaskeptgc.vim
+    test_garbagecollect_now()
+    assert_equal('typealias<list<dict<list<string>>>>',
+                 typename(g:TypeAliasGcVars.A))
+    assert_equal('typealias<func(list<string>): dict<number>>',
+                 typename(g:TypeAliasGcVars.FT))
+    unlet g:TypeAliasGcVars
+    test_garbagecollect_now()
+  END
+  call v9.CheckSourceSuccess(lines)
+endfunc
+
 " Test for using instanceof() with a type alias
 def Test_typealias_instanceof()
   var lines =<< trim END

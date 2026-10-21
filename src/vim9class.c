@@ -2945,7 +2945,7 @@ oc_member_type_by_idx(
     static void
 typealias_free(typealias_T *ta)
 {
-    // ta->ta_type is freed in clear_type_list()
+    free_type(ta->ta_type);
     vim_free(ta->ta_name);
     vim_free(ta);
 }
@@ -3051,12 +3051,15 @@ ex_type(exarg_T *eap)
 	    goto done;
 	++tv.vval.v_typealias->ta_refcount;
 	tv.vval.v_typealias->ta_name = vim_strsave(name_start);
-	if (tv.vval.v_typealias->ta_name == NULL)
+	// The type alias may be used after the script is sourced again,
+	// which frees the types in the script type list.  Use a copy.
+	tv.vval.v_typealias->ta_type = alloc_type(type);
+	if (tv.vval.v_typealias->ta_name == NULL
+				   || tv.vval.v_typealias->ta_type == NULL)
 	{
-	    vim_free(tv.vval.v_typealias);
+	    typealias_free(tv.vval.v_typealias);
 	    goto done;
 	}
-	tv.vval.v_typealias->ta_type = type;
 	tv.vval.v_typealias->ta_depth = parse_type_depth();
     }
     else
