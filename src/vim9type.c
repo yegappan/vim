@@ -1540,6 +1540,11 @@ check_argument_types(
 static int	parse_depth = 0;
 static int	parse_max_depth = 0;
 
+// Pairs of a type from a type alias and its copy in "alias_copies_gap", made
+// while parsing the current type.  Used to copy each type only once.
+static garray_T	alias_copies = {0, 0, sizeof(type_T *) * 2, 20, NULL};
+static garray_T	*alias_copies_gap = NULL;
+
 /*
  * Skip over type in list<type>, dict<type> or tuple<type>.
  * Returns a pointer to the character after the type.  "syn_error" is set to
@@ -2068,6 +2073,48 @@ parse_type_object(
 }
 
 /*
+ * Make a copy of type alias type "type" in "type_gap", including the member
+ * and argument types.  Static types are used as-is.  A type that was already
+ * copied while parsing the current type is used again, otherwise a type alias
+ * that uses another one twice would double the size of the type.
+ * When allocation fails returns "type".
+ */
+    static type_T *
+copy_alias_type(type_T *type, garray_T *type_gap)
+{
+    if (type->tt_flags & TTFLAG_STATIC)
+	return type;
+
+    if (alias_copies_gap != type_gap)
+    {
+	ga_clear(&alias_copies);
+	alias_copies_gap = type_gap;
+    }
+    for (int i = 0; i < alias_copies.ga_len; ++i)
+	if (((type_T **)alias_copies.ga_data)[i * 2] == type)
+	    return ((type_T **)alias_copies.ga_data)[i * 2 + 1];
+
+    type_T *copy = copy_type(type, type_gap);
+    if (copy == type)
+	return type;
+    if (ga_grow(&alias_copies, 1) == OK)
+    {
+	((type_T **)alias_copies.ga_data)[alias_copies.ga_len * 2] = type;
+	((type_T **)alias_copies.ga_data)[alias_copies.ga_len * 2 + 1] = copy;
+	++alias_copies.ga_len;
+    }
+
+    if (copy->tt_member != NULL)
+	copy->tt_member = copy_alias_type(copy->tt_member, type_gap);
+    // When allocating the arguments failed "tt_args" is shared with "type".
+    if (copy->tt_args != NULL && copy->tt_args != type->tt_args)
+	for (int i = 0; i < copy->tt_argcount; ++i)
+	    copy->tt_args[i] = copy_alias_type(copy->tt_args[i], type_gap);
+
+    return copy;
+}
+
+/*
  * Parse a user defined type at "*arg" and advance over it.
  * It can be a class or an interface or a typealias name, possibly imported.
  * Return NULL if a type is not found.
@@ -2124,10 +2171,12 @@ parse_type_user_defined(
 		parse_max_depth = depth;
 
 	    // A static type is never freed and may be compared by pointer
-	    // (e.g. with t_bool), use it as-is.
+	    // (e.g. with t_bool), use it as-is.  Otherwise make a copy that
+	    // does not refer to the types of the type alias, these are freed
+	    // when the script that defines it is sourced again.
 	    type_T *type = tv.vval.v_typealias->ta_type;
 	    if ((type->tt_flags & TTFLAG_STATIC) == 0)
-		type = copy_type(type, type_gap);
+		type = copy_alias_type(type, type_gap);
 	    *arg += len;
 	    clear_tv(&tv);
 	    // Skip over ".TypeName".
@@ -2313,6 +2362,11 @@ parse_type(
 	parse_max_depth = parse_depth;
     type = parse_type_inner(arg, type_gap, ufunc, cctx, give_error);
     --parse_depth;
+    if (parse_depth == 0)
+    {
+	ga_clear(&alias_copies);
+	alias_copies_gap = NULL;
+    }
     return type;
 }
 

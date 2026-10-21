@@ -1501,6 +1501,39 @@ def Test_disassemble_lambda_call_types()
   assert_match('\d DCALL GlobalDefForLambda(argc 0)', instr)
 enddef
 
+" Disassemble a function using an imported type alias after the script
+" defining it was sourced again.  The function is compiled when it is
+" disassembled.  Using freed memory is only detected with valgrind or ASAN.
+def Test_disassemble_typealias_script_reload()
+  var lines =<< trim END
+    vim9script
+    export type DL = list<dict<list<string>>>
+  END
+  writefile(lines, 'Xdisasmreload.vim', 'D')
+
+  lines =<< trim END
+    vim9script
+    import './Xdisasmreload.vim' as L
+    def Foo(x: L.DL): number
+      var y: L.DL = x
+      return len(y)
+    enddef
+    source ./Xdisasmreload.vim
+    g:instr = execute('disassemble Foo')
+  END
+  v9.CheckScriptSuccess(lines)
+  assert_match('<SNR>\d\+_Foo\_s*' ..
+    'var y: L.DL = x\_s*' ..
+    '0 LOAD arg\[-1\]\_s*' ..
+    '1 SETTYPE list<dict<list<string>>>\_s*' ..
+    '2 STORE $0\_s*' ..
+    'return len(y)\_s*' ..
+    '3 LOAD $0\_s*' ..
+    '4 BCALL len(argc 1)\_s*' ..
+    '5 RETURN', g:instr)
+  unlet g:instr
+enddef
+
 def s:LambdaWithType(): number
   var Ref = (a: number) => a + 10
   return Ref(g:value)

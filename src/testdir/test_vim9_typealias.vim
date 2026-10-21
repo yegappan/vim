@@ -1953,6 +1953,117 @@ def Test_typealias_import()
   v9.CheckScriptSuccess(lines)
 enddef
 
+" Test for using a type alias after the script defining it is sourced again.
+" Using freed memory is only detected when using valgrind or ASAN.
+def Test_typealias_script_reload()
+  var lines =<< trim END
+    vim9script
+    export type DL = list<dict<list<string>>>
+    export type FT = func(list<dict<list<string>>>): number
+  END
+  writefile(lines, 'Xtypealiasreload.vim', 'D')
+
+  lines =<< trim END
+    vim9script
+    import './Xtypealiasreload.vim' as L
+    def Foo(x: L.DL): number
+      return len(x)
+    enddef
+    var v: L.DL = []
+    class C
+      public var m: L.DL = []
+    endclass
+    var o = C.new()
+    var Fn: L.FT = (x) => len(x)
+    def G<T>(x: T): number
+      return len(x)
+    enddef
+    def H(): number
+      return G<L.DL>([{a: ['x']}])
+    enddef
+    assert_equal(1, H())
+    source ./Xtypealiasreload.vim
+
+    var msg = 'type mismatch, expected list<dict<list<string>>> but got list<dict<list<number>>>'
+    assert_equal(1, Foo([{a: ['y']}]))
+    assert_fails('Foo([{a: [1]}])', 'E1013: Argument 1: ' .. msg)
+    assert_fails('v = [{a: [1]}]', 'E1012: Type mismatch; expected list<dict<list<string>>>')
+    assert_fails('o.m = [{a: [1]}]', 'E1012: Type mismatch; expected list<dict<list<string>>>')
+    assert_fails('G<L.DL>([{a: [1]}])', 'E1013: Argument 1: ' .. msg)
+    assert_fails('Fn = (x: list<string>): number => 1', 'E1012: Type mismatch; expected func(list<dict<list<string>>>): number')
+  END
+  v9.CheckScriptSuccess(lines)
+
+  # The static member types of a type alias are not copied, they are compared
+  # by pointer
+  lines =<< trim END
+    vim9script
+    class C
+    endclass
+    type DictOfObj = dict<list<object<any>>>
+    def Foo(): string
+      var d: DictOfObj = {a: [C.new()]}
+      return typename(d)
+    enddef
+    assert_equal('dict<list<object<any>>>', Foo())
+  END
+  v9.CheckScriptSuccess(lines)
+
+  # lambda using a type alias, kept after the script is sourced again
+  lines =<< trim END
+    vim9script
+    type DL = list<dict<list<string>>>
+    if !exists('g:TypeAliasFn')
+      g:TypeAliasFn = (x: DL): number => len(x)
+    endif
+  END
+  writefile(lines, 'Xtypealiaslambda.vim', 'D')
+  source Xtypealiaslambda.vim
+  source Xtypealiaslambda.vim
+  assert_equal(1, g:TypeAliasFn([{a: ['x']}]))
+  assert_fails('g:TypeAliasFn([{a: [1]}])', 'E1013: Argument 1: type mismatch, expected list<dict<list<string>>> but got list<dict<list<number>>>')
+  unlet g:TypeAliasFn
+
+  # A type alias that uses the previous one twice does not double the size of
+  # the copied types, this would take a very long time.
+  lines = ['vim9script', 'type T0 = number']
+  for i in range(1, 30)
+    lines->add($'type T{i} = tuple<T{i - 1}, T{i - 1}>')
+  endfor
+  lines += ['def Fn(x: T30)', 'enddef', 'defcompile Fn',
+        'class C', '  var m: T30', 'endclass']
+  v9.CheckSourceSuccess(lines)
+enddef
+
+" Test for garbage collection of functions using a type alias after the script
+" defining it is sourced again.  Using freed memory is only detected when
+" using valgrind or ASAN.
+func Test_typealias_script_reload_garbagecollect()
+  let lines =<< trim END
+    vim9script
+    export type DL = list<dict<list<string>>>
+  END
+  call writefile(lines, 'Xtypealiasreloadgc.vim', 'D')
+
+  let lines =<< trim END
+    vim9script
+    import './Xtypealiasreloadgc.vim' as L
+    var d: dict<any> = {}
+    d.Fn = (x: L.DL): number => len(x)
+    d.self = d
+    var Keep = (x: L.DL): number => len(x)
+    source ./Xtypealiasreloadgc.vim
+    test_garbagecollect_now()
+    assert_equal(1, Keep([{a: ['x']}]))
+    assert_fails('Keep([{a: [1]}])', 'E1013: Argument 1: type mismatch, expected list<dict<list<string>>> but got list<dict<list<number>>>')
+    assert_equal(1, d.Fn([{a: ['y']}]))
+    d = {}
+    test_garbagecollect_now()
+    assert_equal(1, Keep([{a: ['z']}]))
+  END
+  call v9.CheckScriptSuccess(lines)
+endfunc
+
 " Test for using typealias as a def function argument and return type
 def Test_typealias_func_argument()
   var lines =<< trim END
