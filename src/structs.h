@@ -1786,6 +1786,7 @@ struct typealias_S
     type_T  *ta_type;
     char_u  *ta_name;
     int	    ta_depth;	    // number of levels of "ta_type"
+    garray_T ta_type_list;  // types used by "ta_type"
 };
 
 /*

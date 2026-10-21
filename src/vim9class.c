@@ -2945,7 +2945,7 @@ oc_member_type_by_idx(
     static void
 typealias_free(typealias_T *ta)
 {
-    // ta->ta_type is freed in clear_type_list()
+    clear_type_list(&ta->ta_type_list);
     vim_free(ta->ta_name);
     vim_free(ta);
 }
@@ -3013,15 +3013,22 @@ ex_type(exarg_T *eap)
 	return;
     }
 
-    scriptitem_T    *si = SCRIPT_ITEM(current_sctx.sc_sid);
-    type_T *type = parse_type(&arg, &si->sn_type_list, NULL, NULL, TRUE);
+    // The type alias may be used after the script is sourced again, which
+    // clears the script type list.  It owns the list with its types.
+    garray_T	type_list;
+    ga_init2(&type_list, sizeof(type_T *), 10);
+    type_T *type = parse_type(&arg, &type_list, NULL, NULL, TRUE);
     if (type == NULL)
+    {
+	clear_type_list(&type_list);
 	return;
+    }
 
     if (*arg != NUL)
     {
 	// some text after the type
 	semsg(_(e_trailing_characters_str), arg);
+	clear_type_list(&type_list);
 	return;
     }
 
@@ -3057,6 +3064,8 @@ ex_type(exarg_T *eap)
 	    goto done;
 	}
 	tv.vval.v_typealias->ta_type = type;
+	tv.vval.v_typealias->ta_type_list = type_list;
+	ga_init2(&type_list, sizeof(type_T *), 10);
 	tv.vval.v_typealias->ta_depth = parse_type_depth();
     }
     else
@@ -3074,6 +3083,7 @@ ex_type(exarg_T *eap)
 
 done:
     *name_end = cc;
+    clear_type_list(&type_list);
 }
 
 /*
